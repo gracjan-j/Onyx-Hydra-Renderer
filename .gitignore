@@ -1,6 +1,14 @@
 # Created by https://www.toptal.com/developers/gitignore/api/macos,cmake,xcode,c++
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos,cmake,xcode,c++
 
+# Build folders
+build/
+cmake-build-debug/
+cmake-build-release/
+
+# CLion
+.idea/
+
 ### C++ ###
 # Prerequisites
 *.d

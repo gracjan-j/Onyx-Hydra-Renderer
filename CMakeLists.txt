@@ -10,14 +10,4 @@ set(CMAKE_CXX_STANDARD 17)
 # Dodajemy wszystkie wymagane zewnętrzne biblioteki.
 add_subdirectory(extern)
 
-# Dodajemy "target" pliku wykonywalnego w formacie macOS bundle
-# by wymusić stworzenie pliku .app przez CMake zamiast surowego pliku binarnego.
-add_executable(OnyxApp MACOSX_BUNDLE
-    src/main.cpp
-)
-
-target_link_libraries(OnyxApp PRIVATE
-    # Target ImGui uwzględnia GLFW oraz OpenGL
-    ImGui
-)
-
+add_subdirectory(src)

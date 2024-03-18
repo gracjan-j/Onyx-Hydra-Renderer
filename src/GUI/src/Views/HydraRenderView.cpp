@@ -44,13 +44,14 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
         pxr::GfVec2i newTargetSize = pxr::GfVec2i(resolutionX, resolutionY);
         
         // Jeśli rozmiar nie wymaga aktualizacji, wychodzimy z metody bez błędu.
-        if (currentTargetSize.XAxis() == newTargetSize.XAxis() && currentTargetSize.YAxis() == newTargetSize.YAxis())
+        if (currentTargetSize != newTargetSize)
         {
+            m_UsdDrawTarget.value()->Bind();
+            m_UsdDrawTarget.value()->SetSize(newTargetSize);
+            m_UsdDrawTarget.value()->Unbind();
+
             return true;
         }
-        
-        // Zwalniamy stary deskryptor, jest nieaktualny.
-        m_UsdDrawTarget.reset();
     }
     
     auto drawTargetTextureSize = pxr::GfVec2i(resolutionX, resolutionY);
@@ -88,7 +89,7 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
     }
     
     pxr::GfVec4d viewport(0, 0, 1280, 720);
-    m_UsdImagingEngine.value()->SetRenderBufferSize(m_UsdDrawTarget.value()->GetSize());
+    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
 
     return true;
 }

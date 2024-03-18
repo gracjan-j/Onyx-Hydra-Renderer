@@ -4,6 +4,7 @@
 
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usd/primRange.h>
+#include <pxr/imaging/glf/contextCaps.h>
 
 #define GL_SILENCE_DEPRECATION
 
@@ -15,6 +16,8 @@ namespace GUI
         // Inicjalizacja GLFW (okna) musi nastąpić przed inicjalizacją ImGui.
         InitialiseGLFW();
         InitialiseImGui();
+
+        pxr::GlfContextCaps::InitInstance();
 
         m_HydraRenderView = std::make_unique<HydraRenderView>();
     }

@@ -4,3 +4,6 @@
 [submodule "extern/GLFW"]
 	path = extern/GLFW
 	url = https://github.com/glfw/glfw.git
+[submodule "extern/NativeFileDialogExtended"]
+	path = extern/NativeFileDialogExtended
+	url = https://github.com/btzy/nativefiledialog-extended.git

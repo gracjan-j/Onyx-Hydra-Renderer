@@ -45,7 +45,6 @@ namespace GUI
         // Wymaga stworzonego kontekstu.
         // Struktura służąca do konfiguracji operacji input-output.
         ImGuiIO& io = ImGui::GetIO();
-        (void)io;
 
         // Wnioskujemy o wsparcie dla zdarzeń wywołanych klawiszami klawiatury
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -62,6 +61,8 @@ namespace GUI
         // Finalnie, inicjalizujemy ImGui za pomocą wcześniej utworzonego okna.
         ImGui_ImplGlfw_InitForOpenGL(m_WindowBackendGLFW.value(), true);
 
+        // Wersja 1.50 języka GLSL jest wymagana do poprawnego działania modułów OpenUSD
+        // opierających się na OpenGL.
         const std::string shadingLanguageVersion = "#version 150";
         ImGui_ImplOpenGL3_Init(shadingLanguageVersion.c_str());
 
@@ -127,11 +128,13 @@ namespace GUI
             ImGui::NewFrame();
 
             // Przygotowujemy render klatki przed wyświetleniem
+            // Rozmiar renderu powinien odpowiadać rozmiarowi okna.
+            ImVec2 viewportSize = ImGui::GetMainViewport()->WorkSize;
+            m_HydraRenderView->CreateOrUpdateDrawTarget(viewportSize.x, viewportSize.y);
             m_HydraRenderView->PrepareBeforeDraw();
             m_HydraRenderView->Draw();
 
-            if (m_ShowDemoWidget)
-                ImGui::ShowDemoWindow(&m_ShowDemoWidget);
+            if (m_ShowDemoWidget) ImGui::ShowDemoWindow(&m_ShowDemoWidget);
 
             {
                 ImGui::Begin("Onyx");

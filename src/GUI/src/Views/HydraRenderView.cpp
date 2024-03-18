@@ -42,10 +42,10 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
     {
         pxr::GfVec2i currentTargetSize = m_UsdDrawTarget.value()->GetSize();
         pxr::GfVec2i newTargetSize = pxr::GfVec2i(resolutionX, resolutionY);
-        
-        // Jeśli rozmiar nie wymaga aktualizacji, wychodzimy z metody bez błędu.
+
         if (currentTargetSize != newTargetSize)
         {
+            // Rozmiar tekstury wymaga aktualizacji.
             m_UsdDrawTarget.value()->Bind();
             m_UsdDrawTarget.value()->SetSize(newTargetSize);
             m_UsdDrawTarget.value()->Unbind();
@@ -81,15 +81,6 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
 
     // Tymczasowo wyłączamy deskryptor z użytku.
     m_UsdDrawTarget.value()->Unbind();
-    
-
-    if (!m_UsdImagingEngine.has_value())
-    {
-        return false;
-    }
-    
-    pxr::GfVec4d viewport(0, 0, 1280, 720);
-    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
 
     return true;
 }
@@ -129,10 +120,6 @@ bool GUI::HydraRenderView::PrepareBeforeDraw()
     // który jest pośrednikiem pomiędzy interfejsem użytkownika a silnikiem renderującym w OpenUSD.
     // Podczas operacji "Draw" widoku korzystamy już z gotowej tesktury która zostaje wyświetlona w interfejsie.
     
-    // Rozmiar renderu powinien odpowiadać rozmiarowi okna.
-    ImVec2 currentWindowSize = ImGui::GetWindowSize();
-    CreateOrUpdateDrawTarget(1280, 720);
-    
     // Ustawiamy teksturę jako aktualny "framebuffer". Framebuffer jest obiektem
     // do którego wpisywany jest wynik podczas wykonywania operacji renderowania przejścia na GPU.
     // USD uruchamia "Blit Render Encoder" który kopiuje dane z wewnętrznej tekstury do aktualnego framebuffera,
@@ -150,6 +137,9 @@ bool GUI::HydraRenderView::PrepareBeforeDraw()
     {
         m_UsdImagingEngine.value()->SetCameraPath(m_StageCameraVector[0].GetPath());
     }
+
+    pxr::GfVec4d viewport(0, 0, m_UsdDrawTarget.value()->GetSize()[0], m_UsdDrawTarget.value()->GetSize()[1]);
+    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
 
     m_UsdImagingEngine.value()->Render(m_Stage.value()->GetPseudoRoot(), renderParams);
     
@@ -194,7 +184,11 @@ void GUI::HydraRenderView::Draw()
     ImGui::PopStyleVar(3);
     
     // Wyświetlamy teksturę z wynkikiem renderowania.
-    ImGui::Image((void*)(intptr_t)m_ColorTextureID, ImVec2(mainImGuiViewport->WorkSize.x, mainImGuiViewport->WorkSize.y), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
-    
+    if (m_UsdDrawTarget.has_value())
+    {
+        auto getImageSize = m_UsdDrawTarget.value()->GetSize();
+        ImGui::Image((void*)(intptr_t)m_ColorTextureID, ImVec2(getImageSize[0], getImageSize[1]), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
+    }
+
     ImGui::End();
 }

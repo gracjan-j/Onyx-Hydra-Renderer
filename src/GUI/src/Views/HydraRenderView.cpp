@@ -88,8 +88,15 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
 
 bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage)
 {
+    if (m_Stage == stage)
+    {
+        return true;
+    }
+
     m_Stage.reset();
     m_Stage = stage;
+
+    Initialise();
     
     // Tworzymy obiekt wymiany informacji między interfejsem a silnikiem dla nowej sceny.
     m_UsdImagingEngine = new pxr::UsdImagingGLEngine(m_Stage.value()->GetPseudoRoot().GetPath(), pxr::SdfPathVector());
@@ -113,6 +120,10 @@ bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage
     {
         std::cout << plugin.GetString() << std::endl;
     }
+    
+    m_UsdImagingEngine.value()->SetRendererPlugin(availableRenderersVector.back());
+
+    return true;
 }
 
 
@@ -123,6 +134,10 @@ bool GUI::HydraRenderView::PrepareBeforeDraw()
     {
         return false;
     }
+
+    // Rozmiar renderu powinien odpowiadać rozmiarowi okna.
+    ImVec2 viewportSize = ImGui::GetMainViewport()->WorkSize;
+    CreateOrUpdateDrawTarget(viewportSize.x, viewportSize.y);
     
     // Przed każdym rysowaniem widoku musimy wyrenderować klatkę z silnika za pomocą frameworku Hydra,
     // który jest pośrednikiem pomiędzy interfejsem użytkownika a silnikiem renderującym w OpenUSD.
@@ -187,9 +202,7 @@ void GUI::HydraRenderView::Draw()
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     
     // Tworzymy zawsze widoczne okno.
-    static bool showWindow = true;
-    ImGui::Begin(m_GuiDisplayName.value().c_str(), &showWindow, renderWindowFlags);
-    ImGui::PopStyleVar(3);
+    ImGui::Begin(m_GuiDisplayName.value().c_str(), nullptr, renderWindowFlags);
     
     // Wyświetlamy teksturę z wynkikiem renderowania.
     if (m_UsdDrawTarget.has_value())
@@ -198,5 +211,6 @@ void GUI::HydraRenderView::Draw()
         ImGui::Image((void*)(intptr_t)m_ColorTextureID, ImVec2(getImageSize[0], getImageSize[1]), ImVec2(0.0, 1.0), ImVec2(1.0, 0.0));
     }
 
+    ImGui::PopStyleVar(3);
     ImGui::End();
 }

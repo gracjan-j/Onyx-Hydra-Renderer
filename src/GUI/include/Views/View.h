@@ -18,8 +18,6 @@ public:
     virtual bool PrepareBeforeDraw() = 0;
 
     virtual void Draw() = 0;
-
-    virtual bool SetNewSize() = 0;
 };
 
 

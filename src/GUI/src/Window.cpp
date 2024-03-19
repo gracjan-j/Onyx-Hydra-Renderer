@@ -6,6 +6,9 @@
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/imaging/glf/contextCaps.h>
 
+#include <CoreFoundation/CoreFoundation.h>
+
+#define BUF_SIZE 1024
 #define GL_SILENCE_DEPRECATION
 
 namespace GUI
@@ -19,7 +22,11 @@ namespace GUI
 
         pxr::GlfContextCaps::InitInstance();
 
+        // Tworzymy niezbedne widoki:
+        // - Widok okna renderowania
+        // - Widok okna menu obsługi silnika oraz sceny.
         m_HydraRenderView = std::make_unique<HydraRenderView>();
+        m_MenuView = std::make_unique<MenuView>();
     }
 
     Window::~Window()
@@ -36,8 +43,29 @@ namespace GUI
         glfwTerminate();
     }
 
+    std::optional<std::string> GetAppBundleFilePath(const std::string &filename) {
+        char pathOutputBuffer[BUF_SIZE];
+        auto appBundle = CFBundleGetMainBundle();
+
+        auto filePathCFString = CFStringCreateWithCString(NULL, filename.c_str(), kCFStringEncodingUTF8);
+        auto fileURL = CFBundleCopyResourceURL(appBundle,filePathCFString, NULL, NULL);
+        CFRelease(filePathCFString);
+
+        if (fileURL == NULL) return std::nullopt;
+
+        CFURLGetFileSystemRepresentation(fileURL, true, (UInt8*)&pathOutputBuffer, BUF_SIZE);
+        CFRelease(fileURL);
+        return { pathOutputBuffer };
+    }
+
     bool Window::InitialiseImGui()
     {
+        if (!m_WindowBackendGLFW.has_value())
+        {
+            std::cout << "Error: Inicjalizacja ImGui wymaga pomyślnej wcześniejszej inicjalizacji GLFW." << std::endl;
+            return false;
+        }
+
         // Tworzymy nowy kontekst renderowania dla ImGui.
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -45,18 +73,32 @@ namespace GUI
         // Wymaga stworzonego kontekstu.
         // Struktura służąca do konfiguracji operacji input-output.
         ImGuiIO& io = ImGui::GetIO();
+        // Rezygnujemy z korzystania z pliku konfiguracyjnego ImGui.
+        io.IniFilename = nullptr;
+
+        // Ustawiamy dodatkowe skalowanie czcionki zwiększając jej rozdzielczość.
+        // Czcionka będzie wpisana do atlasu czcionek w 150% swojego rozmiaru,
+        // lecz jej skala w interface pozostanie znormalizowana co zwiekszy jej rozdzielczość
+        // i ostrość.
+        const float fontSizeScalar = 1.5;
+
+        // Znajdujemy plik ttf czcionki w folderze Resources naszej aplikacji za pomocą macOS Core Foundation.
+        auto robotoFontPath = GetAppBundleFilePath("Fonts/Roboto-Regular.ttf");
+
+        // Dodajemy czcionkę do atlasu czcionek w ImGui.
+        if(robotoFontPath.has_value())
+        {
+            io.Fonts->AddFontFromFileTTF(
+            robotoFontPath.value().c_str(),
+            16 * fontSizeScalar,
+            nullptr)->Scale = 1.0f / fontSizeScalar;
+        }
 
         // Wnioskujemy o wsparcie dla zdarzeń wywołanych klawiszami klawiatury
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
         // Ustawiamy domyślny, ciemny motyw interfejsu użytkownika.
         ImGui::StyleColorsDark();
-
-        if (!m_WindowBackendGLFW.has_value())
-        {
-            std::cout << "Error: Inicjalizacja ImGui wymaga pomyślnej wcześniejszej inicjalizacji GLFW." << std::endl;
-            return false;
-        }
 
         // Finalnie, inicjalizujemy ImGui za pomocą wcześniej utworzonego okna.
         ImGui_ImplGlfw_InitForOpenGL(m_WindowBackendGLFW.value(), true);
@@ -128,57 +170,15 @@ namespace GUI
             ImGui::NewFrame();
 
             // Przygotowujemy render klatki przed wyświetleniem
-            // Rozmiar renderu powinien odpowiadać rozmiarowi okna.
-            ImVec2 viewportSize = ImGui::GetMainViewport()->WorkSize;
-            m_HydraRenderView->CreateOrUpdateDrawTarget(viewportSize.x, viewportSize.y);
+            if (m_MenuView->GetSelectedStage())
+            {
+                m_HydraRenderView->CreateOrUpdateImagingEngine(m_MenuView->GetSelectedStage());
+            }
             m_HydraRenderView->PrepareBeforeDraw();
             m_HydraRenderView->Draw();
 
-            if (m_ShowDemoWidget) ImGui::ShowDemoWindow(&m_ShowDemoWidget);
-
-            {
-                ImGui::Begin("Onyx");
-
-                ImGui::Text("STAGE");
-                
-                if (ImGui::Button("Otwórz USD"))// Buttons return true when clicked (most widgets return true when edited/activated)
-                {
-                    // Zmienna która otrzyma ścieżkę do pliku, jeśli operacja się powiedzie.
-                    nfdchar_t *outputFilePath;
-                    
-                    // Lista akceptowanych rozszerzeń pliku.
-                    nfdfilteritem_t filterItem[1] = {{ "USD", "usd, usdz, usdc, usda" }};
-                    
-                    nfdresult_t fileBrowserResult = NFD_OpenDialog(&outputFilePath, filterItem, 1, "~/Downloads");
-                    if (fileBrowserResult == NFD_OKAY)
-                    {
-                        // Próbujemy otworzyć scenę z pliku USD.
-                        m_OpenedStage = pxr::UsdStage::Open(outputFilePath);
-
-                        if (m_OpenedStage.has_value())
-                        {
-                            m_HydraRenderView->CreateOrUpdateImagingEngine(m_OpenedStage.value());
-                            m_HydraRenderView->Initialise();
-                        }
-                        
-                        // Jesteśmy odpowiedzialni za wywołanie tej funkcji jeśli operacja się powiodła
-                        // i ścieżka została zwrócona.
-                        NFD_FreePath(outputFilePath);
-                    }
-                    else if (fileBrowserResult == NFD_CANCEL)
-                    {
-                        std::cout << "Użytkownik nie wybrał pliku." << std::endl;
-                    }
-                    else
-                    {
-                        std::cout << "[Error] Przeglądarka plików zwróciła błąd: " << NFD_GetError() << std::endl;
-                    }
-                }
-
-                ImGui::Checkbox("Demo Window", &m_ShowDemoWidget);
-
-                ImGui::End();
-            }
+            m_MenuView->PrepareBeforeDraw();
+            m_MenuView->Draw();
 
             ImGui::Render();
 

@@ -5,6 +5,7 @@ set(MODULE_SOURCES
     src/Window.cpp
 
     # Widoki
+    src/Views/MenuView.cpp
     src/Views/HydraRenderView.cpp
 )
 
@@ -13,6 +14,7 @@ set(MODULE_HEADERS
 
     # Widoki
     include/Views/View.h
+    include/Views/MenuView.h
     include/Views/HydraRenderView.h
 )
 

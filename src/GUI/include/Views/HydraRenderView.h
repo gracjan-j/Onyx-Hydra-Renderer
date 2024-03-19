@@ -25,15 +25,13 @@ class HydraRenderView: public View
 public:
 
     HydraRenderView() {};
-    ~HydraRenderView() {};
+    virtual ~HydraRenderView() {};
 
     bool Initialise() override;
 
     bool PrepareBeforeDraw() override;
 
     void Draw() override;
-
-    bool SetNewSize() override {};
     
     bool CreateOrUpdateDrawTarget(int resolutionX, int resolutionY);
     bool CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage);

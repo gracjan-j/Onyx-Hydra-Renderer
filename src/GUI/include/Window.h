@@ -18,6 +18,7 @@
 #include <pxr/imaging/glf/drawTarget.h>
 
 #include "Views/HydraRenderView.h"
+#include "Views/MenuView.h"
 
 
 namespace GUI {
@@ -48,13 +49,9 @@ private:
     std::optional<GLFWwindow*> m_WindowBackendGLFW;
 
     std::unique_ptr<HydraRenderView> m_HydraRenderView;
-
-    bool m_ShowDemoWidget = false;
-    bool m_ShowHelperWidget = false;
+    std::unique_ptr<MenuView> m_MenuView;
 
     const ImVec4 m_WindowBackground = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
-
-    std::optional<pxr::UsdStageRefPtr> m_OpenedStage;
 };
 
 

@@ -15,6 +15,8 @@ find_package(OpenUSD REQUIRED HINTS ${USD_PATH} NAMES pxr)
 
 if (OpenUSD_FOUND)
     message(STATUS "Znaleziono OpenUSD w wersji: ${PXR_VERSION}")
+
+    include(cmake/USDPluginTools.cmake)
 endif()
 
 # Dodajemy wszystkie wymagane zewnętrzne biblioteki.

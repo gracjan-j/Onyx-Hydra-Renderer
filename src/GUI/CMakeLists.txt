@@ -27,6 +27,9 @@ target_include_directories(OnyxGUI PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+include(FindPython3)
+find_package(Python3 REQUIRED COMPONENTS Development)
+
 # Linkujemy do zewnętrznych "targetów" które są wykorzystywane w module.
 # Oznaczenie PUBLIC pozwala na odziedziczenie zależności przez użytkowników modułu.
 target_link_libraries(OnyxGUI PUBLIC
@@ -39,4 +42,6 @@ target_link_libraries(OnyxGUI PUBLIC
 
     # Zbiór bibliotek OpenUSD zdefiniowany pod zmienną.
     ${PXR_LIBRARIES}
+
+    ${Python3_LIBRARIES}
 )

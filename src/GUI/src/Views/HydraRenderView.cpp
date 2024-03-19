@@ -105,6 +105,14 @@ bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage
     // do aktualnie przypisanego "framebuffera" czyli deskryptora tekstur.
     // Przed każdym wywołaniem "Render" musimy podpiąć własny "framebuffer" do którego wykonana zostanie kopia.
     m_UsdImagingEngine.value()->SetEnablePresentation(true);
+
+
+    auto availableRenderersVector = m_UsdImagingEngine.value()->GetRendererPlugins();
+
+    for (auto& plugin: availableRenderersVector)
+    {
+        std::cout << plugin.GetString() << std::endl;
+    }
 }
 
 

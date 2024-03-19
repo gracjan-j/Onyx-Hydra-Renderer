@@ -1,0 +1,22 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "Types": {
+                    "HdOnyxRendererPlugin": {
+                        "bases": [
+                            "HdRendererPlugin"
+                        ],
+                        "displayName": "Onyx",
+                        "priority": 1
+                    }
+                }
+            },
+            "LibraryPath": "Debug/hdOnyx.so",
+            "Name": "HdOnyx",
+            "ResourcePath": "@PLUG_INFO_RESOURCE_PATH@",
+            "Root": ".",
+            "Type": "library"
+        }
+    ]
+}

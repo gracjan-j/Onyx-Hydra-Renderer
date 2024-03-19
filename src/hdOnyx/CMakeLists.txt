@@ -1,3 +1,14 @@
+include(FetchContent)
+
+FetchContent_Declare(
+        embree
+        URL https://github.com/embree/embree/releases/download/v4.3.1/embree-4.3.1.arm64.macosx.zip
+)
+FetchContent_MakeAvailable(embree)
+
+find_package(embree REQUIRED HINTS ${embree_SOURCE_DIR} NAMES embree)
+
+
 set(PXR_PACKAGE hdOnyx)
 
 set(ONYX_SOURCES
@@ -29,6 +40,8 @@ usd_plugin(${PXR_PACKAGE}
 
         # OpenUSD - System tokenizacji
         tf
+
+        embree
 
     CPPFILES
         ${ONYX_SOURCES}

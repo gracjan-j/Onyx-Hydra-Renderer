@@ -1,5 +1,6 @@
 #pragma once
 
+#include "OnyxRenderer.h"
 #include "pxr/pxr.h"
 #include "pxr/imaging/hd/renderDelegate.h"
 #include "pxr/imaging/hd/resourceRegistry.h"
@@ -29,19 +30,16 @@ public:
                                          SdfPath const& id) override;
     void DestroyInstancer(HdInstancer *instancer) override;
 
-    HdRprim *CreateRprim(TfToken const& typeId,
-                                 SdfPath const& rprimId) override;
+    HdRprim *CreateRprim(TfToken const& typeId, SdfPath const& rprimId) override;
+    HdSprim *CreateSprim(TfToken const& typeId, SdfPath const& sprimId) override;
+    HdBprim *CreateBprim(TfToken const& typeId, SdfPath const& bprimId) override;
+
     void DestroyRprim(HdRprim *rPrim) override;
-
-    HdSprim *CreateSprim(TfToken const& typeId,
-                         SdfPath const& sprimId) override;
-    HdSprim *CreateFallbackSprim(TfToken const& typeId) override;
     void DestroySprim(HdSprim *sprim) override;
-
-    HdBprim *CreateBprim(TfToken const& typeId,
-                                 SdfPath const& bprimId) override;
-    HdBprim *CreateFallbackBprim(TfToken const& typeId) override;
     void DestroyBprim(HdBprim *bprim) override;
+
+    HdSprim *CreateFallbackSprim(TfToken const& typeId) override;
+    HdBprim *CreateFallbackBprim(TfToken const& typeId) override;
 
     void CommitResources(HdChangeTracker *tracker) override;
 
@@ -50,13 +48,15 @@ public:
     HdAovDescriptor GetDefaultAovDescriptor(const TfToken& aovName) const override;
 
 private:
+
     static const TfTokenVector SUPPORTED_RPRIM_TYPES;
     static const TfTokenVector SUPPORTED_SPRIM_TYPES;
     static const TfTokenVector SUPPORTED_BPRIM_TYPES;
 
-    void _Initialize();
-
     HdResourceRegistrySharedPtr m_ResourceRegistry;
+    std::shared_ptr<OnyxRenderer> m_RendererBackend;
+
+    void _Initialize();
 
     HdOnyxRenderDelegate(const HdOnyxRenderDelegate &) = delete;
     HdOnyxRenderDelegate &operator =(const HdOnyxRenderDelegate &) = delete;

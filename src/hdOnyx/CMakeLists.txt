@@ -1,17 +1,7 @@
-include(FetchContent)
-
-FetchContent_Declare(
-        embree
-        URL https://github.com/embree/embree/releases/download/v4.3.1/embree-4.3.1.arm64.macosx.zip
-)
-FetchContent_MakeAvailable(embree)
-
-find_package(embree REQUIRED HINTS ${embree_SOURCE_DIR} NAMES embree)
-
-
 set(PXR_PACKAGE hdOnyx)
 
-set(ONYX_SOURCES
+
+set(HD_ONYX_SOURCES
     src/mesh.cpp
     src/renderPass.cpp
     src/renderBuffer.cpp
@@ -19,7 +9,7 @@ set(ONYX_SOURCES
     src/rendererPlugin.cpp
 )
 
-set(ONYX_HEADERS
+set(HD_ONYX_HEADERS
     include/mesh.h
     include/renderPass.h
     include/renderBuffer.h
@@ -39,15 +29,13 @@ usd_plugin(${PXR_PACKAGE}
     LIBRARIES
         # OpenUSD - Hydra
         hd
-
         # OpenUSD - System tokenizacji
         tf
-
-        embree
+        OnyxRenderer
 
     CPPFILES
-        ${ONYX_SOURCES}
-        ${ONYX_HEADERS}
+        ${HD_ONYX_SOURCES}
+        ${HD_ONYX_HEADERS}
 
     INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/include

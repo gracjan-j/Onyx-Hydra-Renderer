@@ -1,8 +1,12 @@
 # Dodajemy moduł programu odpowiedzialny za interfejs użytkownika.
 add_subdirectory(GUI)
 
-# Dodajemy moduł silnika renderującego który będzie ładowany przez GUI.
+# Dodajemy backend silnika renderowania.
+add_subdirectory(OnyxRenderer)
+
+# Dodajemy frontend (Hydra) silnika renderującego który będzie ładowany przez GUI.
 add_subdirectory(hdOnyx)
+
 
 # Wyszukujemy wszystkie pliki które powinny znaleźć się w folderze "Resources"
 # finalnej aplikacji w formacie .app na macOS

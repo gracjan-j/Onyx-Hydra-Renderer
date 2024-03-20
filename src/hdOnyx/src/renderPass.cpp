@@ -8,10 +8,14 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 
-HdOnyxRenderPass::HdOnyxRenderPass(HdRenderIndex *index, HdRprimCollection const &collection)
-: HdRenderPass(index, collection)
+HdOnyxRenderPass::HdOnyxRenderPass(
+    HdRenderIndex *index
+    , HdRprimCollection const &collection
+    , const std::shared_ptr<OnyxRenderer>& rendererBackend)
+    : HdRenderPass(index, collection)
 {
-
+    // Współdzielony wskaźnik
+    m_RendererBackend = rendererBackend;
 }
 
 
@@ -21,39 +25,23 @@ HdOnyxRenderPass::~HdOnyxRenderPass()
 }
 
 
-void DrawColor(HdRenderBuffer* colorBuffer)
+void HdOnyxRenderPass::RunRenderBackendForColorAOV(HdOnyxRenderBuffer& colorAOVBuffer)
 {
-    // Pobieramy informacje o formacie danych bufora.
-    HdFormat format = colorBuffer->GetFormat();
+    // W momencie wywołania metody Map() stajemy się
+    // użytkownikami bufora, dostajemy wskaźnik do danych.
+    auto* bufferData = static_cast<uint8_t*>(colorAOVBuffer.Map());
 
-    // Obliczamy rozmiar elementu z formatu OpenUSD.
-    size_t formatSize = HdDataSizeOfFormat(format);
+    OnyxRenderer::RenderArgument argument = {
+        .width = colorAOVBuffer.GetWidth(),
+        .height = colorAOVBuffer.GetHeight(),
+        .bufferElementSize = HdDataSizeOfFormat(colorAOVBuffer.GetFormat()),
+        .bufferData = bufferData
+    };
 
-    // Stajemy się użytkownikami bufora, dostajemy wskaźnik do danych.
-    uint8_t* bufferData = static_cast<uint8_t*>(colorBuffer->Map());
+    m_RendererBackend->RenderColorAOV(argument);
 
-    // Dla każdego pixela w buforze.
-    for (auto currentY = 0; currentY < colorBuffer->GetHeight(); currentY++)
-    {
-        for (auto currentX = 0; currentX < colorBuffer->GetWidth(); currentX++)
-        {
-            // Obliczamy jedno-wymiarowy offset pixela w buforze 2D.
-            uint32_t pixelOffsetInBuffer = (currentY * colorBuffer->GetWidth()) + currentX;
-
-            // Compute the byte offset, based on raster format.
-            uint8_t* pixelData = &bufferData[pixelOffsetInBuffer * formatSize];
-
-            // Wpisujemy wartość piksela na podstawie pozycji punktu
-            // tworząc gradient.
-            pixelData[0] = int((float(currentX) / colorBuffer->GetWidth()) * 255);
-            pixelData[1] = int((float(currentY) / colorBuffer->GetHeight()) * 255);
-            pixelData[2] = 255;
-            pixelData[3] = 255;
-        }
-    }
-
-    // End buffer write.
-    colorBuffer->Unmap();
+    // Po wykonaniu renderu możemy zwolnić bufor z użycia.
+    colorAOVBuffer.Unmap();
 }
 
 
@@ -64,11 +52,12 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
     // Iterate over each AOV.
     HdRenderPassAovBindingVector aovBindingVector = renderPassState->GetAovBindings();
 
-    for (auto& aovBinding : aovBindingVector) {
-
-        if (aovBinding.aovName == HdAovTokens->color) {
-            HdRenderBuffer* renderBuffer = aovBinding.renderBuffer;
-            DrawColor(renderBuffer);
+    for (auto& aovBinding : aovBindingVector)
+    {
+        if (aovBinding.aovName == HdAovTokens->color)
+        {
+            auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
+            RunRenderBackendForColorAOV(*renderBuffer);
         }
         //
         // if (aovBinding.aovName == HdAovTokens->normal) {

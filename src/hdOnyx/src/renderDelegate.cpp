@@ -1,12 +1,14 @@
 #include "renderDelegate.h"
-#include "mesh.h"
 #include "renderPass.h"
+#include "renderBuffer.h"
+#include "mesh.h"
 
 #include <pxr/imaging/hd/renderBuffer.h>
 
+#include <OnyxRenderer.h>
+
 #include <iostream>
 
-#include "renderBuffer.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
     const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_RPRIM_TYPES =
@@ -60,12 +62,14 @@ void HdOnyxRenderDelegate::_Initialize()
 {
     std::cout << "[hdOnyx] Inicjalizacja Render Delegate" << std::endl;
     m_ResourceRegistry = std::make_shared<HdResourceRegistry>();
+    m_RendererBackend = std::make_shared<OnyxRenderer>();
 }
 
 
 HdOnyxRenderDelegate::~HdOnyxRenderDelegate()
 {
     m_ResourceRegistry.reset();
+    m_RendererBackend.reset();
     std::cout << "[hdOnyx] Destrukcja Render Delegate" << std::endl;
 }
 
@@ -84,7 +88,7 @@ HdRenderPassSharedPtr HdOnyxRenderDelegate::CreateRenderPass(HdRenderIndex *inde
 {
     std::cout << "[hdOnyx] RenderPass | Collection = " << collection.GetName() << std::endl;
 
-    return HdRenderPassSharedPtr(new HdOnyxRenderPass(index, collection));
+    return HdRenderPassSharedPtr(new HdOnyxRenderPass(index, collection, m_RendererBackend));
 }
 
 HdRprim *HdOnyxRenderDelegate::CreateRprim(TfToken const& typeId, SdfPath const& rprimId)

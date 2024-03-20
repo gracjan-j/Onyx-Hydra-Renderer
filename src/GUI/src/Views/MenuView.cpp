@@ -118,9 +118,6 @@ void MenuView::Draw()
     // Zrzucamy poprzednio dodane style ze stosu.
     ImGui::PopStyleVar(3);
     ImGui::End();
-
-    static bool showDemo = true;
-    ImGui::ShowDemoWindow(&showDemo);
 }
 
 

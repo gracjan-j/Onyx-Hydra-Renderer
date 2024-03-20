@@ -17,6 +17,8 @@ public:
 protected:
 
     void _Execute(HdRenderPassStateSharedPtr const& renderPassState, TfTokenVector const &renderTags) override;
+
+    bool IsConverged() const override;
 };
 
 

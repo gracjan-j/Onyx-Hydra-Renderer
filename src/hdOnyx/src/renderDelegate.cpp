@@ -2,12 +2,14 @@
 #include "mesh.h"
 #include "renderPass.h"
 
+#include <pxr/imaging/hd/renderBuffer.h>
+
 #include <iostream>
 
+#include "renderBuffer.h"
+
 PXR_NAMESPACE_OPEN_SCOPE
-
-
-const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_RPRIM_TYPES =
+    const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_RPRIM_TYPES =
 {
     HdPrimTypeTokens->mesh,
 };
@@ -21,7 +23,7 @@ const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_SPRIM_TYPES =
 
 const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_BPRIM_TYPES =
 {
-    
+    HdPrimTypeTokens->renderBuffer
 };
 
 TfTokenVector const& HdOnyxRenderDelegate::GetSupportedRprimTypes() const
@@ -132,6 +134,11 @@ HdOnyxRenderDelegate::DestroySprim(HdSprim *sPrim)
 HdBprim *
 HdOnyxRenderDelegate::CreateBprim(TfToken const& typeId, SdfPath const& bprimId)
 {
+    if (typeId == HdPrimTypeTokens->renderBuffer)
+    {
+        return new HdOnyxRenderBuffer(bprimId);
+    }
+
     TF_CODING_ERROR("Unknown Bprim type=%s id=%s", 
         typeId.GetText(), 
         bprimId.GetText());
@@ -171,6 +178,22 @@ HdOnyxRenderDelegate::DestroyInstancer(HdInstancer *instancer)
 HdRenderParam *HdOnyxRenderDelegate::GetRenderParam() const
 {
     return nullptr;
+}
+
+
+HdAovDescriptor HdOnyxRenderDelegate::GetDefaultAovDescriptor(const TfToken& aovName) const
+{
+    if (aovName == HdAovTokens->color)
+    {
+        return HdAovDescriptor(HdFormatUNorm8Vec4, true, VtValue(GfVec4f(0.0f)));
+    }
+
+    if (aovName == HdAovTokens->depth)
+    {
+        return HdAovDescriptor(HdFormatFloat32, false, VtValue(1.0f));
+    }
+
+    return HdAovDescriptor();
 }
 
 

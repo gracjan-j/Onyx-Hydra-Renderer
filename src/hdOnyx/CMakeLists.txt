@@ -14,6 +14,7 @@ set(PXR_PACKAGE hdOnyx)
 set(ONYX_SOURCES
     src/mesh.cpp
     src/renderPass.cpp
+    src/renderBuffer.cpp
     src/renderDelegate.cpp
     src/rendererPlugin.cpp
 )
@@ -21,6 +22,7 @@ set(ONYX_SOURCES
 set(ONYX_HEADERS
     include/mesh.h
     include/renderPass.h
+    include/renderBuffer.h
     include/renderDelegate.h
     include/rendererPlugin.h
 )

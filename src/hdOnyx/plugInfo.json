@@ -12,10 +12,10 @@
                     }
                 }
             },
-            "LibraryPath": "@PLUG_INFO_LIBRARY_PATH@",
-            "Name": "HdOnyx",
+            "LibraryPath": "../../hdOnyx.so",
+            "Name": "hdOnyx",
             "ResourcePath": "@PLUG_INFO_RESOURCE_PATH@",
-            "Root": "@PLUG_INFO_ROOT@",
+            "Root": ".",
             "Type": "library"
         }
     ]

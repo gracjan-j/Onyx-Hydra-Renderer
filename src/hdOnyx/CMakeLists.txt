@@ -1,6 +1,5 @@
 set(PXR_PACKAGE hdOnyx)
 
-
 set(HD_ONYX_SOURCES
     src/mesh.cpp
     src/renderPass.cpp

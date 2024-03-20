@@ -7,16 +7,10 @@ project(Onyx VERSION 1.1)
 # Wymagamy C++17 dla OpenUSD
 set(CMAKE_CXX_STANDARD 17)
 
-# Zakładamy, że OpenUSD zostało zbudowane przed uruchomieniem konfiguracji projektu
-# za pomocą wbudowanego skryptu, tworzącego pxrConfig.cmake
-# który definiuje wszystkie wymagane moduły.
-# Scieżka do zbudowanego USD powinna zostać podana za pomocą `USD_PATH`.
-find_package(OpenUSD REQUIRED HINTS ${USD_PATH} NAMES pxr)
-
-if (OpenUSD_FOUND)
-    message(STATUS "Znaleziono OpenUSD w wersji: ${PXR_VERSION}")
-
-    include(cmake/USDPluginTools.cmake)
+# W przypadku C++17 wymagane jest włączenie wycofanych funkcji na nowych systemach macOS.
+if (APPLE AND CMAKE_HOST_SYSTEM_VERSION VERSION_GREATER_EQUAL 23)
+    message(STATUS "Aplikuje flagę która aktywuje wycofane funkcje z języka C++ 17 na macOS Sonoma+")
+    set_directory_properties(PROPERTIES COMPILE_DEFINITIONS _LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION)
 endif()
 
 # Dodajemy wszystkie wymagane zewnętrzne biblioteki.

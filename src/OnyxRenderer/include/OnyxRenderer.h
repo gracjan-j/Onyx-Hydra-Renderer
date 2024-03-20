@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <embree4/rtcore.h>
 
 
 class OnyxRenderer
@@ -16,11 +17,17 @@ public:
         uint8_t* bufferData;
     };
 
-    OnyxRenderer() {};
-    ~OnyxRenderer() {};
+    OnyxRenderer();
+    ~OnyxRenderer();
 
     bool RenderColorAOV(const RenderArgument& renderArgument);
 
 private:
+
+    bool RenderEmbreeScene();
+
+    RTCDevice m_EmbreeDevice;
+    RTCScene m_EmbreeScene;
+    RTCGeometry m_SceneGeometrySource;
 
 };

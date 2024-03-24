@@ -6,6 +6,8 @@
 # W tym celu, dodajemy submoduł GLFW do naszego projektu. GLFW jest biblioteką z przygotowanym CMakeLists.
 add_subdirectory(GLFW)
 
+add_subdirectory(NativeFileDialogExtended)
+
 # ------------------------------------------
 # ImGui nie posiada gotowego pliku CMakeList.
 # Tworzymy własny "target" modułu do którego będziemy linkować z głównego pliku wykonywalnego aplikacji.

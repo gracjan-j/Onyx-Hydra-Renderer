@@ -1,5 +1,16 @@
 #include <Window.h>
 
+#include <nfd.hpp>
+
+#include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usd/primRange.h>
+#include <pxr/imaging/glf/contextCaps.h>
+
+#include <CoreFoundation/CoreFoundation.h>
+
+#define BUF_SIZE 1024
+#define GL_SILENCE_DEPRECATION
+
 namespace GUI
 {
 
@@ -8,6 +19,14 @@ namespace GUI
         // Inicjalizacja GLFW (okna) musi nastąpić przed inicjalizacją ImGui.
         InitialiseGLFW();
         InitialiseImGui();
+
+        pxr::GlfContextCaps::InitInstance();
+
+        // Tworzymy niezbedne widoki:
+        // - Widok okna renderowania
+        // - Widok okna menu obsługi silnika oraz sceny.
+        m_HydraRenderView = std::make_unique<HydraRenderView>();
+        m_MenuView = std::make_unique<MenuView>();
     }
 
     Window::~Window()
@@ -16,13 +35,37 @@ namespace GUI
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
 
+        // Deinicjalizacja NativeFileDialog powinna nastąpić przed GLFW terminate.
+        NFD_Quit();
+
         // Funkcja zwalnia pamięć okna.
         glfwDestroyWindow(m_WindowBackendGLFW.value());
         glfwTerminate();
     }
 
+    std::optional<std::string> GetAppBundleFilePath(const std::string &filename) {
+        char pathOutputBuffer[BUF_SIZE];
+        auto appBundle = CFBundleGetMainBundle();
+
+        auto filePathCFString = CFStringCreateWithCString(NULL, filename.c_str(), kCFStringEncodingUTF8);
+        auto fileURL = CFBundleCopyResourceURL(appBundle,filePathCFString, NULL, NULL);
+        CFRelease(filePathCFString);
+
+        if (fileURL == NULL) return std::nullopt;
+
+        CFURLGetFileSystemRepresentation(fileURL, true, (UInt8*)&pathOutputBuffer, BUF_SIZE);
+        CFRelease(fileURL);
+        return { pathOutputBuffer };
+    }
+
     bool Window::InitialiseImGui()
     {
+        if (!m_WindowBackendGLFW.has_value())
+        {
+            std::cout << "Error: Inicjalizacja ImGui wymaga pomyślnej wcześniejszej inicjalizacji GLFW." << std::endl;
+            return false;
+        }
+
         // Tworzymy nowy kontekst renderowania dla ImGui.
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -30,7 +73,26 @@ namespace GUI
         // Wymaga stworzonego kontekstu.
         // Struktura służąca do konfiguracji operacji input-output.
         ImGuiIO& io = ImGui::GetIO();
-        (void)io;
+        // Rezygnujemy z korzystania z pliku konfiguracyjnego ImGui.
+        io.IniFilename = nullptr;
+
+        // Ustawiamy dodatkowe skalowanie czcionki zwiększając jej rozdzielczość.
+        // Czcionka będzie wpisana do atlasu czcionek w 150% swojego rozmiaru,
+        // lecz jej skala w interface pozostanie znormalizowana co zwiekszy jej rozdzielczość
+        // i ostrość.
+        const float fontSizeScalar = 1.5;
+
+        // Znajdujemy plik ttf czcionki w folderze Resources naszej aplikacji za pomocą macOS Core Foundation.
+        auto robotoFontPath = GetAppBundleFilePath("Fonts/Roboto-Regular.ttf");
+
+        // Dodajemy czcionkę do atlasu czcionek w ImGui.
+        if(robotoFontPath.has_value())
+        {
+            io.Fonts->AddFontFromFileTTF(
+            robotoFontPath.value().c_str(),
+            16 * fontSizeScalar,
+            nullptr)->Scale = 1.0f / fontSizeScalar;
+        }
 
         // Wnioskujemy o wsparcie dla zdarzeń wywołanych klawiszami klawiatury
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -38,16 +100,12 @@ namespace GUI
         // Ustawiamy domyślny, ciemny motyw interfejsu użytkownika.
         ImGui::StyleColorsDark();
 
-        if (!m_WindowBackendGLFW.has_value())
-        {
-            std::cout << "Error: Inicjalizacja ImGui wymaga pomyślnej wcześniejszej inicjalizacji GLFW." << std::endl;
-            return false;
-        }
-
-        const std::string shadingLanguageVersion = "#version 150";
-
         // Finalnie, inicjalizujemy ImGui za pomocą wcześniej utworzonego okna.
         ImGui_ImplGlfw_InitForOpenGL(m_WindowBackendGLFW.value(), true);
+
+        // Wersja 1.50 języka GLSL jest wymagana do poprawnego działania modułów OpenUSD
+        // opierających się na OpenGL.
+        const std::string shadingLanguageVersion = "#version 150";
         ImGui_ImplOpenGL3_Init(shadingLanguageVersion.c_str());
 
         return true;
@@ -91,6 +149,11 @@ namespace GUI
         // To musi nastąpić po stworzeniu kontekstu renderowania!
         glfwSwapInterval(1);
 
+        // Inicjalizujemy Native File Dialog po inicjalizacji GLFW wg. zaleceń dokumentacji
+        if (NFD_Init() != NFD_OKAY) {
+            return false;
+        }
+
         return true;
     }
 
@@ -99,11 +162,6 @@ namespace GUI
         // Main loop
         while (!glfwWindowShouldClose(m_WindowBackendGLFW.value()))
         {
-            // Poll and handle events (inputs, window resize, etc.)
-            // You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
-            // - When io.WantCaptureMouse is true, do not dispatch mouse input data to your main application, or clear/overwrite your copy of the mouse data.
-            // - When io.WantCaptureKeyboard is true, do not dispatch keyboard input data to your main application, or clear/overwrite your copy of the keyboard data.
-            // Generally you may always pass all inputs to dear imgui, and hide them from your application based on those two flags.
             glfwPollEvents();
 
             // Start the Dear ImGui frame
@@ -111,50 +169,31 @@ namespace GUI
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
-            // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-            if (m_ShowDemoWidget)
-                ImGui::ShowDemoWindow(&m_ShowDemoWidget);
-
-            // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
+            // Przygotowujemy render klatki przed wyświetleniem
+            if (m_MenuView->GetSelectedStage())
             {
-                static float f = 0.0f;
-                static int counter = 0;
-
-                ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-                ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-                ImGui::Checkbox("Demo Window", &m_ShowDemoWidget);      // Edit bools storing our window open/close state
-                ImGui::Checkbox("Another Window", &m_ShowHelperWidget);
-
-                ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-                ImGui::ColorEdit3("clear color", (float*)&m_WindowBackground); // Edit 3 floats representing a color
-
-                if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                    counter++;
-                ImGui::SameLine();
-                ImGui::Text("counter = %d", counter);
-                ImGui::End();
+                m_HydraRenderView->CreateOrUpdateImagingEngine(m_MenuView->GetSelectedStage());
             }
+            m_HydraRenderView->PrepareBeforeDraw();
+            m_HydraRenderView->Draw();
 
-            // 3. Show another simple window.
-            if (m_ShowHelperWidget)
-            {
-                ImGui::Begin("Another Window", &m_ShowHelperWidget);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-                ImGui::Text("Hello from another window!");
-                if (ImGui::Button("Close Me"))
-                    m_ShowHelperWidget = false;
-                ImGui::End();
-            }
+            m_MenuView->PrepareBeforeDraw();
+            m_MenuView->Draw();
 
-            // Rendering
             ImGui::Render();
-            int display_w, display_h;
-            glfwGetFramebufferSize(m_WindowBackendGLFW.value(), &display_w, &display_h);
-            glViewport(0, 0, display_w, display_h);
+
+            // Pobieramy rozmiar okna z aktualnego framebuffera GLFW
+            int windowWidth, windowHeight;
+            glfwGetFramebufferSize(m_WindowBackendGLFW.value(), &windowWidth, &windowHeight);
+            
+            // Czyścimy okno domyślnym kolorem tła.
+            glViewport(0, 0, windowWidth, windowHeight);
             glClearColor(m_WindowBackground.x, m_WindowBackground.y, m_WindowBackground.z, m_WindowBackground.w);
             glClear(GL_COLOR_BUFFER_BIT);
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+            // Podmieniamy framebuffer (korzystamy z double-buffering) aby zminimalizować
+            // przerwy między klatkami.
             glfwSwapBuffers(m_WindowBackendGLFW.value());
         }
     }

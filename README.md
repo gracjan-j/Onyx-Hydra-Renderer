@@ -1,4 +1,4 @@
-# hdOnyx
+# Onyx Hydra Renderer
 
 ## Zewnętrzne Biblioteki:
 - [ImGui](https://github.com/ocornut/imgui) z backendem:
@@ -9,6 +9,21 @@
 - CMake 3.19+
 - macOS 14
 - Xcode
+- OpenUSD 23.08+
+
+## Budowanie biblioteki OpenUSD
+1. Należy sklonować oryginalne repozytorium OpenUSD:
+```zsh
+git clone https://github.com/PixarAnimationStudios/OpenUSD
+```
+2. Należy wywołać skrypt za pomocą interpretera języka Python
+który automatyzuje proces budowania biblioteki. Projekt jest
+dostosowany w sposób który zapewnia kompatybilność z OpenUSD zbudowanym
+z domyślną konfiguracją skryptu.
+```zsh
+# W sklonowanym repozytorium OpenUSD:
+python3 build_scripts/build_usd.py /Ścieżka/Instalacyjna/OpenUSD
+```
 
 ## Konfiguracja projektu
 
@@ -28,7 +43,8 @@ mkdir build
 cd build
 
 # Skonfiguruj projekt przez CMake używając generatora Xcode
-cmake .. -G "Xcode"
+# i ścieżki do zbudowanej biblioteki OpenUSD 23.08+
+cmake .. -G "Xcode" -DUSD_PATH="/Ścieżka/Instalacyjna/OpenUSD"
 
 # W folderze zostanie wygenerowany projekt Xcode
 # który może zostać użyty do zbudowania programu i/lub edycji plików.

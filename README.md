@@ -1,4 +1,4 @@
-# hdOnyx
+# Onyx Hydra Renderer
 
 ## Zewnętrzne Biblioteki:
 - [ImGui](https://github.com/ocornut/imgui) z backendem:

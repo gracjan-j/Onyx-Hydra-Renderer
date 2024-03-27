@@ -30,7 +30,7 @@ protected:
 
 private:
 
-    void RunRenderBackendForColorAOV(HdOnyxRenderBuffer& colorAOVBuffer);
+    void RunRenderBackendForColorAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer);
 
     std::shared_ptr<OnyxRenderer> m_RendererBackend;
 };

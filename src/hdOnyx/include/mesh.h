@@ -1,5 +1,7 @@
 #pragma once
 
+#include <embree4/rtcore_geometry.h>
+
 #include "pxr/pxr.h"
 #include "pxr/imaging/hd/mesh.h"
 
@@ -35,6 +37,16 @@ protected:
 
     HdOnyxMesh(const HdOnyxMesh&) = delete;
     HdOnyxMesh &operator =(const HdOnyxMesh&) = delete;
+
+private:
+    RTCGeometry m_MeshGeometrySource;
+    uint m_MeshAttachmentID = 0;
+
+    // Bufor punktów (points / vertices) geometrii.
+    VtVec3fArray m_PointArray;
+
+    // Bufor ztriangulowanych indeksów (indices) punktów geometrii
+    pxr::VtVec3iArray m_IndexArray;
 };
 
 

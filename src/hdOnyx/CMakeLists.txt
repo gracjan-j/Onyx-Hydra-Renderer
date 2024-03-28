@@ -14,6 +14,7 @@ set(HD_ONYX_HEADERS
     include/renderBuffer.h
     include/renderDelegate.h
     include/rendererPlugin.h
+    include/renderParam.h
 )
 
 # Korzystamy z makra zdefiniowanego dla pluginów

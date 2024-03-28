@@ -64,6 +64,11 @@ void HdOnyxRenderDelegate::_Initialize()
     std::cout << "[hdOnyx] Inicjalizacja Render Delegate" << std::endl;
     m_ResourceRegistry = std::make_shared<HdResourceRegistry>();
     m_RendererBackend = std::make_shared<OnyxRenderer>();
+
+    // Backend silnika tworzy Embree device który jest wymagay do tworzenia
+    // zasobów biblioteki Embree. Pobieramy wskaźnik i przekazujemy go podczas
+    // synchronizacji obiektów prim.
+    m_RenderParam = std::make_shared<HdOnyxRenderParam>(m_RendererBackend->GetEmbreeDeviceHandle(), m_RendererBackend.get());
 }
 
 
@@ -152,8 +157,8 @@ HdOnyxRenderDelegate::CreateBprim(TfToken const& typeId, SdfPath const& bprimId)
         return new HdOnyxRenderBuffer(bprimId);
     }
 
-    TF_CODING_ERROR("Unknown Bprim type=%s id=%s", 
-        typeId.GetText(), 
+    TF_CODING_ERROR("Unknown Bprim type=%s id=%s",
+        typeId.GetText(),
         bprimId.GetText());
     return nullptr;
 }
@@ -161,8 +166,8 @@ HdOnyxRenderDelegate::CreateBprim(TfToken const& typeId, SdfPath const& bprimId)
 HdBprim *
 HdOnyxRenderDelegate::CreateFallbackBprim(TfToken const& typeId)
 {
-    TF_CODING_ERROR("Creating unknown fallback bprim type=%s", 
-        typeId.GetText()); 
+    TF_CODING_ERROR("Creating unknown fallback bprim type=%s",
+        typeId.GetText());
     return nullptr;
 }
 
@@ -177,12 +182,12 @@ HdOnyxRenderDelegate::CreateInstancer(
     HdSceneDelegate *delegate,
     SdfPath const& id)
 {
-    TF_CODING_ERROR("Creating Instancer not supported id=%s", 
+    TF_CODING_ERROR("Creating Instancer not supported id=%s",
         id.GetText());
     return nullptr;
 }
 
-void 
+void
 HdOnyxRenderDelegate::DestroyInstancer(HdInstancer *instancer)
 {
     TF_CODING_ERROR("Destroy instancer not supported");
@@ -190,7 +195,7 @@ HdOnyxRenderDelegate::DestroyInstancer(HdInstancer *instancer)
 
 HdRenderParam *HdOnyxRenderDelegate::GetRenderParam() const
 {
-    return nullptr;
+    return m_RenderParam.get();
 }
 
 

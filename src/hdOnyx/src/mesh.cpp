@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include <pxr/imaging/hd/meshUtil.h>
-#include <pxr/base/gf/matrix4f.h>
 
 #include <embree4/rtcore_device.h>
 
@@ -69,6 +68,8 @@ void HdOnyxMesh::Sync(
         rebuildMesh = true;
     }
 
+    bool topologyChanged = false;
+
     // Jeśli mesh nie został jeszcze zainicjalizowany lub buffer punktów uległ zmianie
     if (rebuildMesh || HdChangeTracker::IsPrimvarDirty(*dirtyBits, primID, HdTokens->points))
     {
@@ -90,6 +91,8 @@ void HdOnyxMesh::Sync(
             sizeof(GfVec3f),
             m_PointArray.size()
         );
+
+        topologyChanged = true;
     }
 
     // Jeśli mesh nie został jeszcze zainicjalizowany lub buffer indeksów punktów uległ zmianie
@@ -121,41 +124,73 @@ void HdOnyxMesh::Sync(
             m_IndexArray.size()
         );
 
-        auto err = rtcGetDeviceError(onyxRenderParam->GetEmbreeDevice());
-
-        if (err == RTC_ERROR_NONE)
-        {
-            bool a;
-        }
+        topologyChanged = true;
     }
+
+
+    // Jeśli topologia geometrii uległa zmianie, musimy wywołać budowę triangle BVH geometrii.
+    if (topologyChanged)
+    {
+        // Dane zostały uzupełnione, wnioskujemy o zbudowanie obiektu geometrii Embree.
+        // CommitGeometry musi zostać wywołane przed utworzeniem prymitywnego obiektu geometrii.
+        rtcCommitGeometry(m_MeshGeometrySource);
+
+        m_MeshRTAS = rtcNewScene(onyxRenderParam->GetEmbreeDevice());
+
+        // Podpinamy deskryptor geometrii do prymitywnego obiektu geometrii
+        rtcAttachGeometry(m_MeshRTAS, m_MeshGeometrySource);
+
+        // Wnioskujemy o zbudowanie prymitywnego obiektu geometrii
+        // Embree którego użyjemy do stworzenia instancji w scenie.
+        rtcCommitScene(m_MeshRTAS);
+    }
+
 
     // Jeśli mesh nie został zainicjalizowany lub jego transformacja uległa zmianie
     if (rebuildMesh || HdChangeTracker::IsTransformDirty(*dirtyBits, primID))
     {
-        pxr::GfMatrix4f meshTransformMatrix = GfMatrix4f(sceneDelegate->GetTransform(primID));
-
-        rtcSetGeometryTransform(
-            m_MeshGeometrySource,
-            0,
-            RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR,
-            meshTransformMatrix.GetArray()
-        );
-
-        auto err = rtcGetDeviceError(onyxRenderParam->GetEmbreeDevice());
-
-        if (err == RTC_ERROR_NONE)
+        // Jeśli instancja została wcześniej podpięta pod główną scenę
+        if (m_InstanceAttachmentID.has_value())
         {
-            bool a;
+            // Dokonujemy odpięcia instancji geometrii od głównej sceny silnika w celu aktualizacji.
+            onyxRenderParam->GetRendererHandle()->DetachGeometryFromScene(m_InstanceAttachmentID.value());
+
+            // Jednocześnie zaznaczamy że instancja została odpięta i nie ma już przypisanego identyfikatora.
+            m_InstanceAttachmentID = std::nullopt;
         }
 
+        // Pobieramy aktualną transformację obiektu.
+        m_InstanceTransformMatrix = GfMatrix4f(sceneDelegate->GetTransform(primID));
+
+        // Tworzymy nową geometrię typu - instance
+        // Korzystamy w ten sposób z możliwości utworzenia wirtualnej kopii bazowej geometrii
+        // z własnym przekształceniem, zamiast modyfikacji bazowej geometrii transformacją.
+        m_MeshInstanceSource = rtcNewGeometry(onyxRenderParam->GetEmbreeDevice(), RTC_GEOMETRY_TYPE_INSTANCE);
+
+        // Ustawiamy źródło instancji - bazowy obiekt geometrii
+        rtcSetGeometryInstancedScene(m_MeshInstanceSource, m_MeshRTAS);
+        rtcSetGeometryTimeStepCount(m_MeshInstanceSource, 1);
+
+        // Wywołanie funkcji SetGeometryTransform jest możliwe tylko i wyłącznie na
+        // instancjach. Korzystająć z prymitywnego typu geometrii - triangle w Embree
+        // możemy osiągnąć poprawną transformację, transformując wierzchołki (punkty) geometrii.
+        // Jednak, lepszym rozwiązaniem jest wykorzystanie instancingu.
+        rtcSetGeometryTransform(
+            m_MeshInstanceSource,
+            0,
+            RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR,
+            m_InstanceTransformMatrix.GetArray()
+        );
+
+        rtcCommitGeometry(m_MeshInstanceSource);
     }
 
-    // Dane zostały uzupełnione, wnioskujemy o zbudowanie obiektu geometrii Embree.
-    // CommitGeometry musi zostać wywołane przed użyciem obiektu w scenie Embree.
-    rtcCommitGeometry(m_MeshGeometrySource);
-
-    // Dodajemy geometrię do sceny.
-    m_MeshAttachmentID = onyxRenderParam->GetRendererHandle()->AddTriangleGeometrySource(m_MeshGeometrySource);
+    // Jeśli instancja nie jest aktualnie powiązana z główną sceną silnika.
+    if (!m_InstanceAttachmentID.has_value())
+    {
+        // Powiązujemy instancę z główną sceną silnika.
+        m_InstanceAttachmentID = onyxRenderParam->GetRendererHandle()->AttachGeometryToScene(m_MeshInstanceSource);
+    }
 
     // Dokonaliśmy niezbędnej synchronizacji danych na których nam zależy.
     // Oznaczamy prim jako wolny od zmian.

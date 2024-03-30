@@ -11,10 +11,10 @@ set(HD_ONYX_SOURCES
 set(HD_ONYX_HEADERS
     include/mesh.h
     include/renderPass.h
+    include/renderParam.h
     include/renderBuffer.h
     include/renderDelegate.h
     include/rendererPlugin.h
-    include/renderParam.h
 )
 
 # Korzystamy z makra zdefiniowanego dla pluginów

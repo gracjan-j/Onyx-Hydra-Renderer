@@ -172,7 +172,10 @@ namespace GUI
             // Przygotowujemy render klatki przed wyświetleniem
             if (m_MenuView->GetSelectedStage())
             {
-                m_HydraRenderView->CreateOrUpdateImagingEngine(m_MenuView->GetSelectedStage());
+                m_HydraRenderView->CreateOrUpdateImagingEngine(
+                    m_MenuView->GetSelectedStage(),
+                    m_MenuView->GetSelectedAOV()
+                );
             }
             m_HydraRenderView->PrepareBeforeDraw();
             m_HydraRenderView->Draw();

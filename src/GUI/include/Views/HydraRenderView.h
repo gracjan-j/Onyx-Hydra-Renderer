@@ -34,7 +34,7 @@ public:
     void Draw() override;
     
     bool CreateOrUpdateDrawTarget(int resolutionX, int resolutionY);
-    bool CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage);
+    bool CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage, const pxr::TfToken& rendererAOV);
 
     GLuint m_ColorTextureID = 0;
     

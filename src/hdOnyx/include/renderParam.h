@@ -1,8 +1,10 @@
 #pragma once
 
 #include "OnyxRenderer.h"
-#include "pxr/pxr.h"
-#include "pxr/imaging/hd/renderDelegate.h"
+
+#include <pxr/pxr.h>
+#include <pxr/imaging/hd/renderDelegate.h>
+#include <pxr/imaging/hd/renderThread.h>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -22,6 +24,7 @@ private:
 
     RTCDevice m_EmbreeDevice;
     OnyxRenderer* m_RendererBackend;
+    std::shared_ptr<HdRenderThread> m_BackgroundRenderThread;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

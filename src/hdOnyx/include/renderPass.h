@@ -17,7 +17,8 @@ public:
     HdOnyxRenderPass(
         HdRenderIndex *index
         , HdRprimCollection const &collection
-        , const std::shared_ptr<OnyxRenderer>& rendererBackend);
+        , const std::shared_ptr<OnyxRenderer>& rendererBackend
+        , HdRenderThread* backgroundRenderThread);
 
     virtual ~HdOnyxRenderPass();
 
@@ -29,11 +30,17 @@ protected:
 
 
 private:
+    void CheckAndUpdateRendererData(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& renderBuffer);
 
     void RunRenderBackendForColorAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer);
     void RunRenderDebugForNormalAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer);
 
     std::shared_ptr<OnyxRenderer> m_RendererBackend;
+
+    HdRenderThread* m_RenderThread;
+
+    // TODO: [Prototyp] Spraw żeby update danych RenderArgument były możliwe.
+    bool updateOnce = true;
 };
 
 

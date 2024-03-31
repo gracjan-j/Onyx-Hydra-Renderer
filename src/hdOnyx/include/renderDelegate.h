@@ -5,6 +5,7 @@
 #include "pxr/pxr.h"
 #include "pxr/imaging/hd/renderDelegate.h"
 #include "pxr/imaging/hd/resourceRegistry.h"
+#include <pxr/imaging/hd/renderThread.h>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -48,6 +49,10 @@ public:
 
     HdAovDescriptor GetDefaultAovDescriptor(const TfToken& aovName) const override;
 
+    bool IsPauseSupported() const override;
+    bool Pause() override;
+    bool Resume() override;
+
 private:
 
     static const TfTokenVector SUPPORTED_RPRIM_TYPES;
@@ -57,12 +62,21 @@ private:
     HdResourceRegistrySharedPtr m_ResourceRegistry;
     std::shared_ptr<OnyxRenderer> m_RendererBackend;
 
+    // Używamy funkcjonalności USD która pozwala na utworzenie
+    // osobnego wątku do renderowania. RenderThread jest niewielką
+    // nakładką na std::thread która wspiera popularne komendy typu
+    // Stop, Pauza, Render.
+    // Główną motywacją do użycia tej funkcjonalnosci jest
+    // wolne działanie interfejsu użytkownika w trybie jednowątkowym.
+    std::unique_ptr<HdRenderThread> m_BackgroundRenderThread;
+
     // Struktura służąca do wymiany informacji podczas synchronizacji primów.
     // Przekazuje obiekty służące do generacji reprezentacji geometrii Embree
     // oraz wskaźnik do backendu silnika w celu wywoływania modyfikacji danych.
     std::shared_ptr<HdOnyxRenderParam> m_RenderParam;
 
     void _Initialize();
+    void _RenderCallback();
 
     HdOnyxRenderDelegate(const HdOnyxRenderDelegate &) = delete;
     HdOnyxRenderDelegate &operator =(const HdOnyxRenderDelegate &) = delete;

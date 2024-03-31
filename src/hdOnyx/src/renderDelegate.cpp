@@ -65,18 +65,57 @@ void HdOnyxRenderDelegate::_Initialize()
     m_ResourceRegistry = std::make_shared<HdResourceRegistry>();
     m_RendererBackend = std::make_shared<OnyxRenderer>();
 
-    // Backend silnika tworzy Embree device który jest wymagay do tworzenia
+    m_BackgroundRenderThread = std::make_unique<HdRenderThread>();
+
+    // Backend silnika tworzy Embree device który jest wymagany do tworzenia
     // zasobów biblioteki Embree. Pobieramy wskaźnik i przekazujemy go podczas
     // synchronizacji obiektów prim.
-    m_RenderParam = std::make_shared<HdOnyxRenderParam>(m_RendererBackend->GetEmbreeDeviceHandle(), m_RendererBackend.get());
+    m_RenderParam = std::make_shared<HdOnyxRenderParam>(
+        m_RendererBackend->GetEmbreeDeviceHandle(),
+        m_RendererBackend.get()
+    );
+
+    m_BackgroundRenderThread->SetRenderCallback(std::bind(&HdOnyxRenderDelegate::_RenderCallback, this));
+    m_BackgroundRenderThread->StartThread();
+}
+
+
+void HdOnyxRenderDelegate::_RenderCallback()
+{
+    m_RendererBackend->MainRenderingEntrypoint(m_BackgroundRenderThread.get());
 }
 
 
 HdOnyxRenderDelegate::~HdOnyxRenderDelegate()
 {
+    m_BackgroundRenderThread->StopThread();
+
+    m_BackgroundRenderThread.reset();
     m_ResourceRegistry.reset();
     m_RendererBackend.reset();
     std::cout << "[hdOnyx] Destrukcja Render Delegate" << std::endl;
+}
+
+
+bool HdOnyxRenderDelegate::IsPauseSupported() const
+{
+    return true;
+}
+
+
+bool HdOnyxRenderDelegate::Pause()
+{
+    m_BackgroundRenderThread->PauseRender();
+
+    return m_BackgroundRenderThread->IsPauseRequested();
+}
+
+
+bool HdOnyxRenderDelegate::Resume()
+{
+    m_BackgroundRenderThread->ResumeRender();
+
+    return m_BackgroundRenderThread->IsRendering();
 }
 
 
@@ -94,13 +133,15 @@ HdRenderPassSharedPtr HdOnyxRenderDelegate::CreateRenderPass(HdRenderIndex *inde
 {
     std::cout << "[hdOnyx] RenderPass | Collection = " << collection.GetName() << std::endl;
 
-    return HdRenderPassSharedPtr(new HdOnyxRenderPass(index, collection, m_RendererBackend));
+    return HdRenderPassSharedPtr {
+        new HdOnyxRenderPass(index, collection, m_RendererBackend, m_BackgroundRenderThread.get())
+    };
 }
 
 HdRprim *HdOnyxRenderDelegate::CreateRprim(TfToken const& typeId, SdfPath const& rprimId)
 {
-    std::cout << "Create Tiny Rprim type=" << typeId.GetText()
-        << " id=" << rprimId
+    std::cout << "Create Tiny Rprim type=" << typeId.GetText() 
+        << " id=" << rprimId 
         << std::endl;
 
     if (typeId == HdPrimTypeTokens->mesh)
@@ -108,12 +149,10 @@ HdRprim *HdOnyxRenderDelegate::CreateRprim(TfToken const& typeId, SdfPath const&
         return new HdOnyxMesh(rprimId);
     }
 
-    else
-    {
-        TF_CODING_ERROR("Unknown Rprim type=%s id=%s",
-            typeId.GetText(),
-            rprimId.GetText());
-    }
+    TF_CODING_ERROR("Unknown Rprim type=%s id=%s",
+        typeId.GetText(),
+        rprimId.GetText());
+
     return nullptr;
 }
 

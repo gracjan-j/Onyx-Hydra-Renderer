@@ -25,7 +25,7 @@ HdOnyxRenderPass::~HdOnyxRenderPass()
 }
 
 
-void HdOnyxRenderPass::RunRenderBackendForColorAOV(HdOnyxRenderBuffer& colorAOVBuffer)
+void HdOnyxRenderPass::RunRenderBackendForColorAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer)
 {
     // W momencie wywołania metody Map() stajemy się
     // użytkownikami bufora, dostajemy wskaźnik do danych.
@@ -38,6 +38,12 @@ void HdOnyxRenderPass::RunRenderBackendForColorAOV(HdOnyxRenderBuffer& colorAOVB
         .bufferData = bufferData
     };
 
+    // Pobieramy macierze kamery. RenderPass otrzymuje macierze od silnika UsdImagingGLEngine.
+    // Niezbędne jest ustawienie poprawnej ścieżki kamery przed wywołaniem renderowania.
+    const GfMatrix4d viewMatrix = renderPassState->GetWorldToViewMatrix();
+    const GfMatrix4d projMatrix = renderPassState->GetProjectionMatrix();
+
+    m_RendererBackend->SetCameraMatrices(projMatrix, viewMatrix);
     m_RendererBackend->RenderColorAOV(argument);
 
     // Po wykonaniu renderu możemy zwolnić bufor z użycia.
@@ -57,7 +63,7 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
         if (aovBinding.aovName == HdAovTokens->color)
         {
             auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
-            RunRenderBackendForColorAOV(*renderBuffer);
+            RunRenderBackendForColorAOV(renderPassState, *renderBuffer);
         }
         //
         // if (aovBinding.aovName == HdAovTokens->normal) {

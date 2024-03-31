@@ -4,6 +4,7 @@
 #include "mesh.h"
 
 #include <pxr/imaging/hd/renderBuffer.h>
+#include <pxr/imaging/hd/camera.h>
 
 #include <OnyxRenderer.h>
 
@@ -19,7 +20,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_SPRIM_TYPES =
 {
-    
+    HdPrimTypeTokens->camera,
 };
 
 
@@ -97,9 +98,13 @@ HdRprim *HdOnyxRenderDelegate::CreateRprim(TfToken const& typeId, SdfPath const&
         << " id=" << rprimId 
         << std::endl;
 
-    if (typeId == HdPrimTypeTokens->mesh) {
+    if (typeId == HdPrimTypeTokens->mesh)
+    {
         return new HdOnyxMesh(rprimId);
-    } else {
+    }
+
+    else
+    {
         TF_CODING_ERROR("Unknown Rprim type=%s id=%s", 
             typeId.GetText(), 
             rprimId.GetText());
@@ -116,6 +121,10 @@ void HdOnyxRenderDelegate::DestroyRprim(HdRprim *rPrim)
 HdSprim *HdOnyxRenderDelegate::CreateSprim(TfToken const& typeId,
                                     SdfPath const& sprimId)
 {
+    // Niezbędne do otrzymania poprawnych danych z UsdImagingGLEngine
+    // w RenderPass.
+    if (typeId == HdPrimTypeTokens->camera) return new HdCamera(sprimId);
+
     TF_CODING_ERROR("Unknown Sprim type=%s id=%s", 
         typeId.GetText(), 
         sprimId.GetText());

@@ -156,13 +156,13 @@ bool GUI::HydraRenderView::PrepareBeforeDraw()
     renderParams.enableSceneLights = true;
 
     // Wnioskujemy o wykonanie renderu pojedynczej klatki przez wybrany silnik renderowania.
+    pxr::GfVec4d viewport(0, 0, m_UsdDrawTarget.value()->GetSize()[0], m_UsdDrawTarget.value()->GetSize()[1]);
+    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
+
     if (!m_StageCameraVector.empty())
     {
         m_UsdImagingEngine.value()->SetCameraPath(m_StageCameraVector[0].GetPath());
     }
-
-    pxr::GfVec4d viewport(0, 0, m_UsdDrawTarget.value()->GetSize()[0], m_UsdDrawTarget.value()->GetSize()[1]);
-    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
 
     m_UsdImagingEngine.value()->Render(m_Stage.value()->GetPseudoRoot(), renderParams);
     

@@ -51,6 +51,7 @@ set(ONYX_RENDER_SOURCES
 target_link_libraries(OnyxRenderer
     PUBLIC
     embree
+    gf
 )
 
 target_sources(OnyxRenderer PRIVATE

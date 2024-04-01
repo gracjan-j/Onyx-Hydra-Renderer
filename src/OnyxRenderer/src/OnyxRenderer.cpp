@@ -6,28 +6,23 @@ OnyxRenderer::OnyxRenderer()
 {
     m_EmbreeDevice = rtcNewDevice(NULL);
     m_EmbreeScene = rtcNewScene(m_EmbreeDevice);
-    m_SceneGeometrySource = rtcNewGeometry(m_EmbreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
 
     m_ProjectionMat.SetIdentity();
     m_ViewMat.SetIdentity();
 
     m_ProjectionMatInverse.SetIdentity();
     m_ViewMatInverse.SetIdentity();
+}
 
-    auto* vb = (float*) rtcSetNewGeometryBuffer(m_SceneGeometrySource,
-      RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3*sizeof(float), 3);
-    vb[0] = 0.0f; vb[1] = 0.0f; vb[2] = 0.0f; // 1st vertex
-    vb[3] = 1.f; vb[4] = 0.f; vb[5] = 0.f; // 2nd vertex
-    vb[6] = 0.f; vb[7] = 1.f; vb[8] = 0.f; // 3rd vertex
+uint OnyxRenderer::AddTriangleGeometrySource(const RTCGeometry& triangleGeoSource)
+{
+    auto meshID = rtcAttachGeometry(m_EmbreeScene, triangleGeoSource);
 
-    unsigned* ib = (unsigned*) rtcSetNewGeometryBuffer(m_SceneGeometrySource,
-        RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3*sizeof(unsigned), 1);
-    ib[0] = 0; ib[1] = 1; ib[2] = 2;
+    if (meshID == RTC_INVALID_GEOMETRY_ID) {
+        std::cout << "Mesh attachment error for: " << meshID << std::endl;
+    }
 
-    rtcCommitGeometry(m_SceneGeometrySource);
-    rtcAttachGeometry(m_EmbreeScene, m_SceneGeometrySource);
-    rtcReleaseGeometry(m_SceneGeometrySource);
-    rtcCommitScene(m_EmbreeScene);
+    return meshID;
 }
 
 OnyxRenderer::~OnyxRenderer()
@@ -45,7 +40,7 @@ float OnyxRenderer::RenderEmbreeScene(RTCRayHit ray)
         return 0.0;
     }
 
-    return 1.0;
+    return ray.ray.tfar;
 }
 
 void OnyxRenderer::SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix)
@@ -60,8 +55,9 @@ void OnyxRenderer::SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d
 
 bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
 {
-    // RenderEmbreeScene();
-    // return true;
+    // Zatwierdzamy scenę w obecnej postaci przed wywołaniem testu intersekcji.
+    // Modyfikacje sceny nie są możliwe.
+    rtcCommitScene(m_EmbreeScene);
 
     // Dla każdego pixela w buforze.
     for (auto currentY = 0; currentY < renderArgument.height; currentY++)
@@ -93,15 +89,11 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
             // perspektywy wirtualnej kamery. -1 w NDC będzie odpowiadało bliskiej płaszczyźnie projekcji.
             const pxr::GfVec3f nearPlaneProjection = m_ProjectionMatInverse.Transform(NDC);
 
-            pxr::GfVec3f origin;
-            pxr::GfVec3f dir;
+            pxr::GfVec3f origin = m_ViewMatInverse.Transform(pxr::GfVec3f(0.0, 0.0, 0.0));
+            pxr::GfVec3f dir = m_ViewMatInverse.TransformDir(nearPlaneProjection).GetNormalized();
 
-            origin = pxr::GfVec3f(0,0,0);
-            dir = nearPlaneProjection;
-
-            // Transform camera rays to world space.
-            origin = m_ViewMatInverse.Transform(origin);
-            dir = m_ViewMatInverse.TransformDir(dir).GetNormalized();
+            RTCBounds out;
+            rtcGetSceneBounds(m_EmbreeScene, &out);
 
             RTCRayHit rayhit;
             rayhit.ray.org_x  = origin[0]; rayhit.ray.org_y = origin[1]; rayhit.ray.org_z = origin[2];;
@@ -109,10 +101,16 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
             rayhit.ray.tnear  = 0.0;
             rayhit.ray.tfar   = std::numeric_limits<float>::infinity();
             rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+            rayhit.ray.mask   = UINT_MAX;
+            rayhit.ray.time   = 0.0;
 
             float intersectionResult = RenderEmbreeScene(rayhit);
 
-            pixelData[2] = int(254.0 * intersectionResult);
+            if (intersectionResult > 0.0)
+            {
+                pixelData[2] = int(255 * intersectionResult / 10.0);
+            }
+
         }
     }
 

@@ -26,17 +26,22 @@ public:
 
     void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
 
+    uint AddTriangleGeometrySource(const RTCGeometry& triangleGeoSource);
+
+    RTCDevice GetEmbreeDeviceHandle() const { return m_EmbreeDevice; };
+    RTCScene GetEmbreeSceneHandle() const { return m_EmbreeScene; };
+
 private:
 
     float RenderEmbreeScene(RTCRayHit ray);
 
     RTCDevice m_EmbreeDevice;
     RTCScene m_EmbreeScene;
-    RTCGeometry m_SceneGeometrySource;
 
+    // Macierze perspektywy oraz widoku kamery wraz z inwersjami.
+    // TODO: Dedykowana klasa Kamery, przygotowywanie RTCRay do Embree.
     pxr::GfMatrix4d m_ProjectionMat;
     pxr::GfMatrix4d m_ViewMat;
-
     pxr::GfMatrix4d m_ProjectionMatInverse;
     pxr::GfMatrix4d m_ViewMatInverse;
 };

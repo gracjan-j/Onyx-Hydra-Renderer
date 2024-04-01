@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OnyxRenderer.h"
+#include "renderParam.h"
 #include "pxr/pxr.h"
 #include "pxr/imaging/hd/renderDelegate.h"
 #include "pxr/imaging/hd/resourceRegistry.h"
@@ -55,6 +56,11 @@ private:
 
     HdResourceRegistrySharedPtr m_ResourceRegistry;
     std::shared_ptr<OnyxRenderer> m_RendererBackend;
+
+    // Struktura służąca do wymiany informacji podczas synchronizacji primów.
+    // Przekazuje obiekty służące do generacji reprezentacji geometrii Embree
+    // oraz wskaźnik do backendu silnika w celu wywoływania modyfikacji danych.
+    std::shared_ptr<HdOnyxRenderParam> m_RenderParam;
 
     void _Initialize();
 

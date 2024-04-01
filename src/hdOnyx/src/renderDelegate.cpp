@@ -64,6 +64,11 @@ void HdOnyxRenderDelegate::_Initialize()
     std::cout << "[hdOnyx] Inicjalizacja Render Delegate" << std::endl;
     m_ResourceRegistry = std::make_shared<HdResourceRegistry>();
     m_RendererBackend = std::make_shared<OnyxRenderer>();
+
+    // Backend silnika tworzy Embree device który jest wymagay do tworzenia
+    // zasobów biblioteki Embree. Pobieramy wskaźnik i przekazujemy go podczas
+    // synchronizacji obiektów prim.
+    m_RenderParam = std::make_shared<HdOnyxRenderParam>(m_RendererBackend->GetEmbreeDeviceHandle(), m_RendererBackend.get());
 }
 
 
@@ -190,7 +195,7 @@ HdOnyxRenderDelegate::DestroyInstancer(HdInstancer *instancer)
 
 HdRenderParam *HdOnyxRenderDelegate::GetRenderParam() const
 {
-    return nullptr;
+    return m_RenderParam.get();
 }
 
 

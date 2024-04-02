@@ -68,7 +68,7 @@ private:
     // Stop, Pauza, Render.
     // Główną motywacją do użycia tej funkcjonalnosci jest
     // wolne działanie interfejsu użytkownika w trybie jednowątkowym.
-    std::unique_ptr<HdRenderThread> m_BackgroundRenderThread;
+    std::shared_ptr<HdRenderThread> m_BackgroundRenderThread;
 
     // Struktura służąca do wymiany informacji podczas synchronizacji primów.
     // Przekazuje obiekty służące do generacji reprezentacji geometrii Embree

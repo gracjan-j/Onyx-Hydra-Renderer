@@ -41,6 +41,13 @@ protected:
 
 private:
 
+    // Deskryptor instancji w strukturze przyspieszenia intersekcji
+    // która zostaje powiązana z główną sceną silnika.
+    RTCGeometry m_MeshInstanceSource;
+
+    // Indeks pod jakim instancja mesha została powiązana ze sceną główną silnika (ID instancji).
+    std::optional<uint> m_InstanceAttachmentID;
+
     // Struktura przyspieszenia intersekcji Embree zbudowana na podstawie
     // punktów oraz indeksów geometrii. Aby uniknąć transformacji
     // bufora punktów przez transformację obiektu w scenie
@@ -54,13 +61,6 @@ private:
     // (RTAS / BVH - Ray Tracing Acceleration Structure / Bounding Volume Hierarchy)
     // Zawiera bufory punktów oraz indeksów trójkątów budujących mesh.
     RTCGeometry m_MeshGeometrySource;
-
-    // Deskryptor instancji w strukturze przyspieszenia intersekcji
-    // która zostaje powiązana z główną sceną silnika.
-    RTCGeometry m_MeshInstanceSource;
-
-    // Indeks pod jakim instancja mesha została powiązana ze sceną główną silnika (ID instancji).
-    std::optional<uint> m_InstanceAttachmentID;
 
     // Bufor punktów (points / vertices) geometrii.
     VtVec3fArray m_PointArray;

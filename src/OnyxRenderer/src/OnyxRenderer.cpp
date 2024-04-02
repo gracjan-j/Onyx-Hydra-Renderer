@@ -14,9 +14,9 @@ OnyxRenderer::OnyxRenderer()
     m_ViewMatInverse.SetIdentity();
 }
 
-uint OnyxRenderer::AddTriangleGeometrySource(const RTCGeometry& triangleGeoSource)
+uint OnyxRenderer::AttachGeometryToScene(const RTCGeometry& geometrySource)
 {
-    auto meshID = rtcAttachGeometry(m_EmbreeScene, triangleGeoSource);
+    auto meshID = rtcAttachGeometry(m_EmbreeScene, geometrySource);
 
     if (meshID == RTC_INVALID_GEOMETRY_ID) {
         std::cout << "Mesh attachment error for: " << meshID << std::endl;
@@ -24,6 +24,15 @@ uint OnyxRenderer::AddTriangleGeometrySource(const RTCGeometry& triangleGeoSourc
 
     return meshID;
 }
+
+
+void OnyxRenderer::DetachGeometryFromScene(uint geometryID)
+{
+    // Odpinamy geometrię od sceny.
+    rtcDetachGeometry(m_EmbreeScene, geometryID);
+}
+
+
 
 OnyxRenderer::~OnyxRenderer()
 {
@@ -58,6 +67,13 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
     // Zatwierdzamy scenę w obecnej postaci przed wywołaniem testu intersekcji.
     // Modyfikacje sceny nie są możliwe.
     rtcCommitScene(m_EmbreeScene);
+
+    auto err = rtcGetDeviceError(m_EmbreeDevice);
+
+    if (err == RTC_ERROR_NONE)
+    {
+        int i = 0;
+    }
 
     // Dla każdego pixela w buforze.
     for (auto currentY = 0; currentY < renderArgument.height; currentY++)

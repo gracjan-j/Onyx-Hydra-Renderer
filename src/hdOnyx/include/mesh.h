@@ -2,8 +2,9 @@
 
 #include <embree4/rtcore_geometry.h>
 
-#include "pxr/pxr.h"
-#include "pxr/imaging/hd/mesh.h"
+#include <pxr/pxr.h>
+#include <pxr/imaging/hd/mesh.h>
+#include <pxr/base/gf/matrix4f.h>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -39,14 +40,36 @@ protected:
     HdOnyxMesh &operator =(const HdOnyxMesh&) = delete;
 
 private:
+
+    // Struktura przyspieszenia intersekcji Embree zbudowana na podstawie
+    // punktów oraz indeksów geometrii. Aby uniknąć transformacji
+    // bufora punktów przez transformację obiektu w scenie
+    // wykorzystujemy tzw. instancing.
+    // Tworzymy strukturę którą później wykorzystamy do stworzenia instancji.
+    // Scena używana przez silnik używa tylko instancji geometrii.
+    RTCScene m_MeshRTAS;
+
+    // Desktryptor geometrii dla której powinna zostać zbuowana
+    // struktura przyspieszenia intersekcji.
+    // (RTAS / BVH - Ray Tracing Acceleration Structure / Bounding Volume Hierarchy)
+    // Zawiera bufory punktów oraz indeksów trójkątów budujących mesh.
     RTCGeometry m_MeshGeometrySource;
-    uint m_MeshAttachmentID = 0;
+
+    // Deskryptor instancji w strukturze przyspieszenia intersekcji
+    // która zostaje powiązana z główną sceną silnika.
+    RTCGeometry m_MeshInstanceSource;
+
+    // Indeks pod jakim instancja mesha została powiązana ze sceną główną silnika (ID instancji).
+    std::optional<uint> m_InstanceAttachmentID;
 
     // Bufor punktów (points / vertices) geometrii.
     VtVec3fArray m_PointArray;
 
     // Bufor ztriangulowanych indeksów (indices) punktów geometrii
     pxr::VtVec3iArray m_IndexArray;
+
+    // Transformacja geometri (uwzględnia wszystkie transformacje nadrzędne w hierarchii sceny)
+    pxr::GfMatrix4f m_InstanceTransformMatrix;
 };
 
 

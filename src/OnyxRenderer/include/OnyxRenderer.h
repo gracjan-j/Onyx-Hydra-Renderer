@@ -26,7 +26,9 @@ public:
 
     void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
 
-    uint AddTriangleGeometrySource(const RTCGeometry& triangleGeoSource);
+    uint AttachGeometryToScene(const RTCGeometry& geometrySource);
+
+    void DetachGeometryFromScene(uint geometryID);
 
     RTCDevice GetEmbreeDeviceHandle() const { return m_EmbreeDevice; };
     RTCScene GetEmbreeSceneHandle() const { return m_EmbreeScene; };

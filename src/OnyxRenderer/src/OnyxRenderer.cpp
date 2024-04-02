@@ -68,12 +68,6 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
     // Modyfikacje sceny nie są możliwe.
     rtcCommitScene(m_EmbreeScene);
 
-    auto err = rtcGetDeviceError(m_EmbreeDevice);
-
-    if (err == RTC_ERROR_NONE)
-    {
-        int i = 0;
-    }
 
     // Dla każdego pixela w buforze.
     for (auto currentY = 0; currentY < renderArgument.height; currentY++)
@@ -97,7 +91,7 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
             // NDC reprezentują pozycję pikela w screen-space.
             pxr::GfVec3f NDC {
                 2.0f * (float(currentX) / renderArgument.width) - 1.0f,
-                2.0f * (float(currentY) / renderArgument.width) - 1.0f,
+                2.0f * (float(currentY) / renderArgument.height) - 1.0f,
                 -1
             };
 
@@ -107,9 +101,6 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
 
             pxr::GfVec3f origin = m_ViewMatInverse.Transform(pxr::GfVec3f(0.0, 0.0, 0.0));
             pxr::GfVec3f dir = m_ViewMatInverse.TransformDir(nearPlaneProjection).GetNormalized();
-
-            RTCBounds out;
-            rtcGetSceneBounds(m_EmbreeScene, &out);
 
             RTCRayHit rayhit;
             rayhit.ray.org_x  = origin[0]; rayhit.ray.org_y = origin[1]; rayhit.ray.org_z = origin[2];;
@@ -124,9 +115,8 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
 
             if (intersectionResult > 0.0)
             {
-                pixelData[2] = int(255 * intersectionResult / 10.0);
+                pixelData[2] = int(255 * std::clamp(float(intersectionResult / 10.0), 0.0f, 1.0f));
             }
-
         }
     }
 

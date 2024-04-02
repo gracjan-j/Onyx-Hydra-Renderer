@@ -1,6 +1,7 @@
 #include "OnyxRenderer.h"
 
 #include <iostream>
+#include <pxr/imaging/hd/renderThread.h>
 
 OnyxRenderer::OnyxRenderer()
 {
@@ -125,7 +126,7 @@ bool OnyxRenderer::RenderColorAOV(const RenderArgument& renderArgument)
 }
 
 
-bool OnyxRenderer::RenderDebugNormalAOV(const RenderArgument& renderArgument)
+bool OnyxRenderer::RenderDebugNormalAOV()
 {
     // Zatwierdzamy scenę w obecnej postaci przed wywołaniem testu intersekcji.
     // Modyfikacje sceny nie są możliwe.
@@ -133,18 +134,18 @@ bool OnyxRenderer::RenderDebugNormalAOV(const RenderArgument& renderArgument)
 
 
     // Dla każdego pixela w buforze.
-    for (auto currentY = 0; currentY < renderArgument.height; currentY++)
+    for (auto currentY = 0; currentY < m_RenderArgument.height; currentY++)
     {
-        for (auto currentX = 0; currentX < renderArgument.width; currentX++)
+        for (auto currentX = 0; currentX < m_RenderArgument.width; currentX++)
         {
             // Obliczamy jedno-wymiarowy offset pixela w buforze 2D.
-            uint32_t pixelOffsetInBuffer = (currentY * renderArgument.width) + currentX;
+            uint32_t pixelOffsetInBuffer = (currentY * m_RenderArgument.width) + currentX;
 
-            uint8_t* bufferContents = renderArgument.bufferData;
-            uint8_t* pixelData = &bufferContents[pixelOffsetInBuffer * renderArgument.bufferElementSize];
+            uint8_t* bufferContents = m_RenderArgument.bufferData;
+            uint8_t* pixelData = &bufferContents[pixelOffsetInBuffer * m_RenderArgument.bufferElementSize];
 
             // Generujemy promień z kamery.
-            RTCRayHit primaryRayHit = GeneratePrimaryRay(currentX, currentY, renderArgument);
+            RTCRayHit primaryRayHit = GeneratePrimaryRay(currentX, currentY, m_RenderArgument);
 
             // Dokonujemy testu intersekcji promienia ze sceną
             rtcIntersect1(m_EmbreeScene, &primaryRayHit, nullptr);
@@ -169,4 +170,28 @@ bool OnyxRenderer::RenderDebugNormalAOV(const RenderArgument& renderArgument)
     }
 
     return true;
+}
+
+
+void OnyxRenderer::MainRenderingEntrypoint(pxr::HdRenderThread* renderThread)
+{
+    while (renderThread->IsPauseRequested())
+    {
+        if (renderThread->IsStopRequested())
+        {
+            std::cout << "[Onyx BG Thread] Zatrzymano po pauzie." << std::endl;
+            return;
+        }
+
+        std::cout << "[Onyx BG Thread] Pauza." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (renderThread->IsStopRequested()) {
+        std::cout << "[Onyx BG Thread] Zatrzymano." << std::endl;
+        return;
+    }
+
+    RenderDebugNormalAOV();
+    // std::cout << "[Onyx BG Thread] Rendering w toku." << std::endl;
 }

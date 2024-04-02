@@ -4,6 +4,7 @@
 #include <embree4/rtcore.h>
 
 #include <pxr/base/gf/matrix4d.h>
+#include <pxr/imaging/hd/renderThread.h>
 
 
 class OnyxRenderer
@@ -22,10 +23,13 @@ public:
     OnyxRenderer();
     ~OnyxRenderer();
 
+    void MainRenderingEntrypoint(pxr::HdRenderThread* renderThread);
+
     bool RenderColorAOV(const RenderArgument& renderArgument);
-    bool RenderDebugNormalAOV(const RenderArgument& renderArgument);
+    bool RenderDebugNormalAOV();
 
     void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
+    void SetRenderArguments(const RenderArgument& renderArgument) { m_RenderArgument = renderArgument; }
 
     uint AttachGeometryToScene(const RTCGeometry& geometrySource);
 
@@ -49,4 +53,6 @@ private:
     pxr::GfMatrix4d m_ViewMat;
     pxr::GfMatrix4d m_ProjectionMatInverse;
     pxr::GfMatrix4d m_ViewMatInverse;
+
+    RenderArgument m_RenderArgument;
 };

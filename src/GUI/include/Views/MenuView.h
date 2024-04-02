@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <pxr/usd/usd/common.h>
+#include <pxr/imaging/hd/tokens.h>
 
 #include "View.h"
 
@@ -23,14 +24,19 @@ public:
     void Draw() override;
 
     pxr::UsdStageRefPtr GetSelectedStage() { return m_SelectedStage; }
+    pxr::TfToken GetSelectedAOV() { return m_ComboOptionsAOV[m_ComboSelectionIndexAOV]; }
 
 private:
 
-    void DrawUSDSection();
+    void DrawUSDSceneLoadingSection();
+    void DrawAOVSection();
 
     pxr::UsdStageRefPtr m_SelectedStage;
 
     const std::optional<std::string> m_GuiDisplayName = std::make_optional("MENU");
+
+    std::vector<pxr::TfToken> m_ComboOptionsAOV = {pxr::HdAovTokens->color, pxr::HdAovTokens->normal};
+    int m_ComboSelectionIndexAOV = 0;
 };
 
 

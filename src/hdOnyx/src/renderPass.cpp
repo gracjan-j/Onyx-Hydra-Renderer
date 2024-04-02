@@ -51,6 +51,34 @@ void HdOnyxRenderPass::RunRenderBackendForColorAOV(HdRenderPassStateSharedPtr co
 }
 
 
+void HdOnyxRenderPass::RunRenderDebugForNormalAOV(
+    HdRenderPassStateSharedPtr const& renderPassState,
+    HdOnyxRenderBuffer& normalAOVBuffer
+){
+    // W momencie wywołania metody Map() stajemy się
+    // użytkownikami bufora, dostajemy wskaźnik do danych.
+    auto* bufferData = static_cast<uint8_t*>(normalAOVBuffer.Map());
+
+    OnyxRenderer::RenderArgument argument = {
+        .width = normalAOVBuffer.GetWidth(),
+        .height = normalAOVBuffer.GetHeight(),
+        .bufferElementSize = HdDataSizeOfFormat(normalAOVBuffer.GetFormat()),
+        .bufferData = bufferData
+    };
+
+    // Pobieramy macierze kamery. RenderPass otrzymuje macierze od silnika UsdImagingGLEngine.
+    // Niezbędne jest ustawienie poprawnej ścieżki kamery przed wywołaniem renderowania.
+    const GfMatrix4d viewMatrix = renderPassState->GetWorldToViewMatrix();
+    const GfMatrix4d projMatrix = renderPassState->GetProjectionMatrix();
+
+    m_RendererBackend->SetCameraMatrices(projMatrix, viewMatrix);
+    m_RendererBackend->RenderDebugNormalAOV(argument);
+
+    // Po wykonaniu renderu możemy zwolnić bufor z użycia.
+    normalAOVBuffer.Unmap();
+}
+
+
 void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassState, TfTokenVector const &renderTags)
 {
     std::cout << "[hdOnyx] => Wykonanie RenderPass" << std::endl;
@@ -64,6 +92,12 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
         {
             auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
             RunRenderBackendForColorAOV(renderPassState, *renderBuffer);
+        }
+
+        else if (aovBinding.aovName == HdAovTokens->normal)
+        {
+            auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
+            RunRenderDebugForNormalAOV(renderPassState, *renderBuffer);
         }
         //
         // if (aovBinding.aovName == HdAovTokens->normal) {

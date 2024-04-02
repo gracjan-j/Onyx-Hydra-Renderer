@@ -58,7 +58,7 @@ void TextCentered(std::string text)
 }
 
 
-void MenuView::DrawUSDSection()
+void MenuView::DrawUSDSceneLoadingSection()
 {
     if (ImGui::CollapsingHeader("USD"))
     {
@@ -66,7 +66,7 @@ void MenuView::DrawUSDSection()
         ImGui::BulletText("OpenUSD %d.%d", PXR_MINOR_VERSION, PXR_PATCH_VERSION);
 
         ImGui::SeparatorText("Loading");
-        if (ImGui::Button("Load Stage"))// Buttons return true when clicked (most widgets return true when edited/activated)
+        if (ImGui::Button("Load Stage"))
         {
             // Zmienna która otrzyma ścieżkę do pliku, jeśli operacja się powiedzie.
             nfdchar_t *outputFilePath;
@@ -102,6 +102,27 @@ void MenuView::DrawUSDSection()
 }
 
 
+void MenuView::DrawAOVSection()
+{
+    if (ImGui::CollapsingHeader("Display"))
+    {
+        if (ImGui::BeginCombo("AOV", m_ComboOptionsAOV[m_ComboSelectionIndexAOV].GetString().c_str()))
+        {
+            for (int i = 0; i < m_ComboOptionsAOV.size(); i++)
+            {
+                const bool isSelected = (m_ComboSelectionIndexAOV == i);
+
+                if (ImGui::Selectable(m_ComboOptionsAOV[i].GetString().c_str(), isSelected))
+                {
+                    m_ComboSelectionIndexAOV = i;
+                }
+            }
+            ImGui::EndCombo();
+        }
+    }
+}
+
+
 void MenuView::Draw()
 {
     // Zablokowane zostają:
@@ -113,7 +134,9 @@ void MenuView::Draw()
     ImGui::Begin(m_GuiDisplayName.value_or("View").c_str(), nullptr, renderWindowFlags);
     ImGui::Spacing();
 
-    DrawUSDSection();
+    DrawUSDSceneLoadingSection();
+
+    DrawAOVSection();
 
     // Zrzucamy poprzednio dodane style ze stosu.
     ImGui::PopStyleVar(3);

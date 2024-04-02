@@ -23,6 +23,7 @@ public:
     ~OnyxRenderer();
 
     bool RenderColorAOV(const RenderArgument& renderArgument);
+    bool RenderDebugNormalAOV(const RenderArgument& renderArgument);
 
     void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
 
@@ -36,6 +37,8 @@ public:
 private:
 
     float RenderEmbreeScene(RTCRayHit ray);
+
+    RTCRayHit GeneratePrimaryRay(float offsetX, float offsetY, const RenderArgument& renderArgument);
 
     RTCDevice m_EmbreeDevice;
     RTCScene m_EmbreeScene;

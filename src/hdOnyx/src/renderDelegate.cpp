@@ -211,6 +211,11 @@ HdAovDescriptor HdOnyxRenderDelegate::GetDefaultAovDescriptor(const TfToken& aov
         return HdAovDescriptor(HdFormatFloat32, false, VtValue(1.0f));
     }
 
+    if (aovName == HdAovTokens->normal)
+    {
+        return HdAovDescriptor(HdFormatUNorm8Vec4, false, VtValue(GfVec4f(0.0f)));
+    }
+
     return HdAovDescriptor();
 }
 

@@ -29,7 +29,7 @@ protected:
 
 
 private:
-    void CheckAndUpdateRendererData(HdRenderPassStateSharedPtr const& renderPassState);
+    void SendCameraUpdateToRenderer(HdRenderPassStateSharedPtr const& renderPassState);
 
     void UnmapAllBuffersFromArgument();
     void SendRenderArgumentsToEngine();

@@ -32,7 +32,7 @@ HdOnyxRenderPass::~HdOnyxRenderPass()
 }
 
 
-void HdOnyxRenderPass::CheckAndUpdateRendererData(HdRenderPassStateSharedPtr const& renderPassState)
+void HdOnyxRenderPass::SendCameraUpdateToRenderer(HdRenderPassStateSharedPtr const& renderPassState)
 {
     // Pobieramy macierze kamery. RenderPass otrzymuje macierze od silnika UsdImagingGLEngine.
     // Niezbędne jest ustawienie poprawnej ścieżki kamery przed wywołaniem renderowania.
@@ -119,7 +119,7 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
         m_AovBindingVector = renderPassState->GetAovBindings();
         m_ArgumentSendRequired = true;
 
-        CheckAndUpdateRendererData(renderPassState);
+        SendCameraUpdateToRenderer(renderPassState);
     }
 
     // Kolejne wykonanie, dokonamy sprawdzenia ważności danych
@@ -138,10 +138,14 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
         {
             auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(stateAovBindings[0].renderBuffer);
 
+            // Jeśli zmieniły się wymiary okna = zmienił się rozmiar wymaganego renderu.
             if (m_LastSentArgument->SizeChanged(renderBuffer->GetWidth(), renderBuffer->GetHeight()))
             {
                 UnmapAllBuffersFromArgument();
                 m_AovBindingVector = stateAovBindings;
+
+                // Dodatkowo, aktualizujemy dane kamery.
+                SendCameraUpdateToRenderer(renderPassState);
             }
         }
     }

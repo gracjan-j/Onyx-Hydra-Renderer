@@ -4,12 +4,12 @@
 
 #include <pxr/imaging/hd/meshUtil.h>
 
-#include <embree4/rtcore_device.h>
-
 #include "renderParam.h"
 
 PXR_NAMESPACE_OPEN_SCOPE
-    HdOnyxMesh::HdOnyxMesh(SdfPath const& id)
+
+
+HdOnyxMesh::HdOnyxMesh(SdfPath const& id)
 : HdMesh(id)
 {
 

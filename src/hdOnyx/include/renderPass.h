@@ -18,10 +18,9 @@ public:
         HdRenderIndex *index
         , HdRprimCollection const &collection
         , const std::shared_ptr<OnyxRenderer>& rendererBackend
-        , HdRenderThread* backgroundRenderThread);
+        , const std::shared_ptr<HdRenderThread>& backgroundRenderThread);
 
     virtual ~HdOnyxRenderPass();
-
 
 protected:
     void _Execute(HdRenderPassStateSharedPtr const& renderPassState, TfTokenVector const &renderTags) override;
@@ -30,17 +29,29 @@ protected:
 
 
 private:
-    void CheckAndUpdateRendererData(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& renderBuffer);
+    void CheckAndUpdateRendererData(HdRenderPassStateSharedPtr const& renderPassState);
 
-    void RunRenderBackendForColorAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer);
-    void RunRenderDebugForNormalAOV(HdRenderPassStateSharedPtr const& renderPassState, HdOnyxRenderBuffer& colorAOVBuffer);
+    void UnmapAllBuffersFromArgument();
+    void SendRenderArgumentsToEngine();
 
+    // Współdzielony wskaźnik do backendu silnika renderującego.
+    // Używany do przekazywania danych projekcji oraz buforów pikseli które wymagają wypełnienia.
     std::shared_ptr<OnyxRenderer> m_RendererBackend;
 
-    HdRenderThread* m_RenderThread;
+    // Współdzielony wskaźnik do wątku który wykonuje renderowanie.
+    // Używany do kontroli wątku (Stop, Start) w przypadku aktualizacji danych.
+    std::shared_ptr<HdRenderThread> m_RenderThread;
 
-    // TODO: [Prototyp] Spraw żeby update danych RenderArgument były możliwe.
-    bool updateOnce = true;
+    // Wektor renderowanych AOV (arbitrary output variables).
+    // AOV są buforami danych wyświetlanych a ekranie / wymaganych przez
+    // zewnętrzną logikę (głębia, wektory normalne).
+    std::optional<HdRenderPassAovBindingVector> m_AovBindingVector;
+
+    // Flaga wskazująca na poprawność danych buforów wyjściowych
+    // przekazanych silnikowi poprzez strukturę RenderArgument silnika.
+    bool m_ArgumentSendRequired = true;
+
+    std::optional<OnyxRenderer::RenderArgument> m_LastSentArgument;
 };
 
 

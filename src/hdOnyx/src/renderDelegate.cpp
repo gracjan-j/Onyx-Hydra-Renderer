@@ -23,11 +23,11 @@ const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_SPRIM_TYPES =
     HdPrimTypeTokens->camera,
 };
 
-
 const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_BPRIM_TYPES =
 {
     HdPrimTypeTokens->renderBuffer
 };
+
 
 TfTokenVector const& HdOnyxRenderDelegate::GetSupportedRprimTypes() const
 {
@@ -134,7 +134,7 @@ HdRenderPassSharedPtr HdOnyxRenderDelegate::CreateRenderPass(HdRenderIndex *inde
     std::cout << "[hdOnyx] RenderPass | Collection = " << collection.GetName() << std::endl;
 
     return HdRenderPassSharedPtr {
-        new HdOnyxRenderPass(index, collection, m_RendererBackend, m_BackgroundRenderThread.get())
+        new HdOnyxRenderPass(index, collection, m_RendererBackend, m_BackgroundRenderThread)
     };
 }
 

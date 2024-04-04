@@ -45,17 +45,6 @@ OnyxRenderer::~OnyxRenderer()
     rtcReleaseDevice(m_EmbreeDevice);
 }
 
-float OnyxRenderer::RenderEmbreeScene(RTCRayHit ray)
-{
-    rtcIntersect1(m_EmbreeScene, &ray, nullptr);
-
-    if (ray.hit.geomID == RTC_INVALID_GEOMETRY_ID)
-    {
-        return 0.0;
-    }
-
-    return ray.ray.tfar;
-}
 
 void OnyxRenderer::SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix)
 {
@@ -64,36 +53,6 @@ void OnyxRenderer::SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d
 
     m_ProjectionMatInverse = m_ProjectionMat.GetInverse();
     m_ViewMatInverse = m_ViewMat.GetInverse();
-}
-
-
-RTCRayHit OnyxRenderer::GeneratePrimaryRay(float offsetX, float offsetY, const RenderArgument& renderArgument)
-{
-    // Obliczamy Normalised Device Coordinates dla aktualnego piksela
-    // NDC reprezentują pozycję pikela w screen-space.
-    pxr::GfVec3f NDC {
-        2.0f * (float(offsetX) / renderArgument.width) - 1.0f,
-        2.0f * (float(offsetY) / renderArgument.height) - 1.0f,
-        -1
-    };
-
-    // Przechodzimy z NDC (screen-space) do clip-space za pomocą odwrotnej projekcji
-    // perspektywy wirtualnej kamery. -1 w NDC będzie odpowiadało bliskiej płaszczyźnie projekcji.
-    const pxr::GfVec3f nearPlaneProjection = m_ProjectionMatInverse.Transform(NDC);
-
-    pxr::GfVec3f origin = m_ViewMatInverse.Transform(pxr::GfVec3f(0.0, 0.0, 0.0));
-    pxr::GfVec3f dir = m_ViewMatInverse.TransformDir(nearPlaneProjection).GetNormalized();
-
-    RTCRayHit rayhit;
-    rayhit.ray.org_x  = origin[0]; rayhit.ray.org_y = origin[1]; rayhit.ray.org_z = origin[2];;
-    rayhit.ray.dir_x  = dir[0]; rayhit.ray.dir_y = dir[1]; rayhit.ray.dir_z = dir[2];
-    rayhit.ray.tnear  = 0.0;
-    rayhit.ray.tfar   = std::numeric_limits<float>::infinity();
-    rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
-    rayhit.ray.mask   = UINT_MAX;
-    rayhit.ray.time   = 0.0;
-
-    return rayhit;
 }
 
 
@@ -162,7 +121,11 @@ bool OnyxRenderer::RenderAllAOV()
             auto pixelNormal = pxr::GfVec3f(0.0);
 
             // Generujemy promień z kamery.
-            RTCRayHit primaryRayHit = GeneratePrimaryRay(currentX, currentY, m_RenderArgument);
+            RTCRayHit primaryRayHit = OnyxHelper::GeneratePrimaryRay(
+                currentX, currentY,
+                m_RenderArgument.width, m_RenderArgument.height,
+                m_ProjectionMatInverse, m_ViewMatInverse
+            );
 
             // Dokonujemy testu intersekcji promienia ze sceną
             rtcIntersect1(m_EmbreeScene, &primaryRayHit, nullptr);

@@ -42,5 +42,22 @@ public:
         const RTCScene& embreeScene
     );
 
+
+    /**
+     * Metoda pomocnicza służąca do tworzenia promienia wychodzącego z kamery (primary ray).
+     *
+     * @param pixelOffsetX Przesunięcie piksela w osi X (index piksela w kontekście szerokości)
+     * @param pixelOffsetY Przesunięcie piksela w osi Y (index piksela w kontekście wysokości)
+     * @param maxX Limit osi X (rozdzielczość X - szerokość)
+     * @param maxY Limit osi Y (rozdzielczość Y - wysokość)
+     * @param inverseProjectionMatrix Odwrotna macierz projekcji kamery
+     * @param inverseViewMatrix Odwrotna macierz transformacji widoku kamery
+     * @return Zainicjalizowany promień kamery dla Embree, gotowy do testu intersekcji.
+     */
+    static RTCRayHit GeneratePrimaryRay(
+        const float& pixelOffsetX, const float& pixelOffsetY,
+        const float& maxX, const float& maxY,
+        const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix
+    );
 };
 

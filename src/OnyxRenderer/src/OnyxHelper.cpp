@@ -75,3 +75,47 @@ pxr::GfVec3f OnyxHelper::EvaluateHitSurfaceNormal(
 }
 
 
+RTCRayHit OnyxHelper::GeneratePrimaryRay(
+    const float& pixelOffsetX, const float& pixelOffsetY,
+    const float& maxX, const float& maxY,
+    const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix)
+{
+    // Obliczamy Normalised Device Coordinates dla aktualnego piksela
+    // NDC reprezentują pozycję pikela w screen-space.
+    pxr::GfVec3f NDC {
+        2.0f * (float(pixelOffsetX) / maxX) - 1.0f,
+        2.0f * (float(pixelOffsetY) / maxY) - 1.0f,
+        -1
+    };
+
+    // Przechodzimy z NDC (screen-space) do clip-space za pomocą odwrotnej projekcji
+    // perspektywy wirtualnej kamery. -1 w NDC będzie odpowiadało bliskiej płaszczyźnie projekcji.
+    const pxr::GfVec3f nearPlaneProjection = inverseProjectionMatrix.Transform(NDC);
+
+    // Lokalnie, kamera znajduje się w centrum układu współrzednych
+    pxr::GfVec3f rayOrigin = inverseViewMatrix.Transform(pxr::GfVec3f(0.0, 0.0, 0.0));
+    pxr::GfVec3f rayDir    = inverseViewMatrix.TransformDir(nearPlaneProjection).GetNormalized();
+
+    return {
+        .ray = {
+            .org_x = rayOrigin[0],
+            .org_y = rayOrigin[1],
+            .org_z = rayOrigin[2],
+            .dir_x = rayDir[0],
+            .dir_y = rayDir[1],
+            .dir_z = rayDir[2],
+            // Nie ustanawiamy minimalnego limitu intersekcji.
+            .tnear = 0.0,
+            // Maksymalnym limitem teoretycznie jest limit precyzji typu danych
+            .tfar = std::numeric_limits<float>::infinity(),
+            // Nie używamy maskowania. Uwzględniamy wszystkie obiekty sceny
+            .mask = UINT_MAX,
+            // Nie korzystamy z rozmycia spowodowanego ruchem
+            .time =  0.0
+        },
+
+        .hit = {
+            .geomID = RTC_INVALID_GEOMETRY_ID
+        }
+    };
+}

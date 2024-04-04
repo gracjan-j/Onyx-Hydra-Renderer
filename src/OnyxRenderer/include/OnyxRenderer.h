@@ -83,10 +83,6 @@ public:
 
 private:
 
-    float RenderEmbreeScene(RTCRayHit ray);
-
-    RTCRayHit GeneratePrimaryRay(float offsetX, float offsetY, const RenderArgument& renderArgument);
-
     RTCDevice m_EmbreeDevice;
     RTCScene m_EmbreeScene;
 

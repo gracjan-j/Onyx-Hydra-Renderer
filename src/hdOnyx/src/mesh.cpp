@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include <pxr/imaging/hd/meshUtil.h>
+#include <pxr/imaging/hd/vtBufferSource.h>
 
 #include "renderParam.h"
 
@@ -95,23 +96,62 @@ void HdOnyxMesh::Sync(
         topologyChanged = true;
     }
 
+    // Pobieramy deskryptor topologii geometrii który posłuży w triangulacji.
+    const pxr::HdMeshTopology& meshTopology = GetMeshTopology(sceneDelegate);
+
+    // Tworzymy instancę klasy pomocniczej dla geometri która
+    // jest przydatna w triangulacji danych.
+    // Dane geometrii mogą być zakodowane w postaci mieszanki trójkątów i czworokątów.
+    pxr::HdMeshUtil meshUtil{&meshTopology, GetId()};
+
     // Jeśli mesh nie został jeszcze zainicjalizowany lub buffer indeksów punktów uległ zmianie
     if (rebuildMesh || HdChangeTracker::IsPrimvarDirty(*dirtyBits, primID, HdTokens->indices))
     {
         pxr::VtIntArray primitiveParams;
 
-        // Pobieramy deskryptor topologii geometrii który posłuży w triangulacji.
-        const pxr::HdMeshTopology& meshTopology = GetMeshTopology(sceneDelegate);
-
-        // Tworzymy instancę klasy pomocniczej dla geometri która
-        // jest przydatna w triangulacji danych.
-        // Dane geometrii mogą być zakodowane w postaci mieszanki trójkątów i czworokątów.
-        pxr::HdMeshUtil meshUtil{&meshTopology, GetId()};
-
         // Dokonujemy triangulacji danych upewniając się że wszystkie czworokąty zostały
         // rozbite na trójkąty. Triangulacji podlega tylko bufor indeksów które odnoszą
         // się do punktów (points) geometrii.
         meshUtil.ComputeTriangleIndices(&m_IndexArray, &primitiveParams);
+
+        rtcSetSharedGeometryBuffer(
+            m_MeshGeometrySource,
+            RTC_BUFFER_TYPE_INDEX,
+            0,
+            RTC_FORMAT_UINT3,
+            m_IndexArray.cdata(),
+            0,
+            sizeof(GfVec3i),
+            m_IndexArray.size()
+        );
+
+        topologyChanged = true;
+    }
+
+    // Jeśli mesh nie został jeszcze zainicjalizowany lub buffer gładkich wektorów normalnych
+    // został zmieniony. Wygładzone wektory normalne są opcjonalne, jeśli są obecne, silnik ich użyje.
+    if (rebuildMesh || HdChangeTracker::IsPrimvarDirty(*dirtyBits, primID, HdTokens->normals))
+    {
+        // Pobieramy dane wektorów normalnych. Primvar - Primitive Variable - Dodatkowe dane dołączone
+        // do figur z których zbudowana jest geometria.
+        pxr::VtValue smoothNormalPrimvar = GetPrimvar(sceneDelegate, pxr::HdTokens->normals);
+
+        // Podobnie jak w przypadku indesków punktów, wektory mogą być zdefiniowane dla mieszanki czworokątów
+        // jak i trójkątów, ponownie używamy klasy pomocniczej USD do uzyskania wektorów po triangulacji.
+        pxr::HdVtBufferSource inputBufferNormals{pxr::HdTokens->normals, smoothNormalPrimvar};
+        pxr::VtValue triangulationOutput;
+
+        bool normalTriangulationValid = meshUtil.ComputeTriangulatedFaceVaryingPrimvar(
+            inputBufferNormals.GetData(),
+            inputBufferNormals.GetNumElements(),
+            inputBufferNormals.GetTupleType().type,
+            &triangulationOutput);
+
+        // Jeśli dane istnieją i mają poprawny format.
+        if (normalTriangulationValid && triangulationOutput.IsHolding<pxr::VtVec3fArray>())
+        {
+            m_SmoothNormalArray = triangulationOutput.UncheckedGet<pxr::VtVec3fArray>();
+        }
 
         rtcSetSharedGeometryBuffer(
             m_MeshGeometrySource,
@@ -159,8 +199,13 @@ void HdOnyxMesh::Sync(
             m_InstanceAttachmentID = std::nullopt;
         }
 
-        // Pobieramy aktualną transformację obiektu.
-        m_InstanceTransformMatrix = GfMatrix4f(sceneDelegate->GetTransform(primID));
+        // Pobieramy aktualną transformację obiektu i uzupełniamy nią strukturę danych instancji.
+        m_InstanceData = {
+            .TransformMatrix = GfMatrix4f(sceneDelegate->GetTransform(primID)),
+            .SmoothNormalsArray = m_SmoothNormalArray.has_value()
+                ? &(m_SmoothNormalArray.value())
+                : nullptr,
+        };
 
         // Tworzymy nową geometrię typu - instance
         // Korzystamy w ten sposób z możliwości utworzenia wirtualnej kopii bazowej geometrii
@@ -179,8 +224,12 @@ void HdOnyxMesh::Sync(
             m_MeshInstanceSource,
             0,
             RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR,
-            m_InstanceTransformMatrix.GetArray()
+            m_InstanceData.TransformMatrix.GetArray()
         );
+
+        // Powiązujemy małą strukturę z instancją. Podczas testu intersekcji,
+        // możemy otrzymać poniższy wskaźnik do struktury powiązany z instancją.
+        rtcSetGeometryUserData(m_MeshInstanceSource, &m_InstanceData);
 
         rtcCommitGeometry(m_MeshInstanceSource);
     }

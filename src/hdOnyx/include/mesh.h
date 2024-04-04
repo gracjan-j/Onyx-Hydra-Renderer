@@ -9,6 +9,15 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 
+// Struktura pomocnicza przekazywana każdej instancji.
+struct HdOnyxInstanceData
+{
+    // Transformacja instancji.
+    GfMatrix4f TransformMatrix;
+    VtVec3fArray* SmoothNormalsArray;
+};
+
+
 class HdOnyxMesh final : public HdMesh
 {
 public:
@@ -48,6 +57,12 @@ private:
     // Indeks pod jakim instancja mesha została powiązana ze sceną główną silnika (ID instancji).
     std::optional<uint> m_InstanceAttachmentID;
 
+    // Struktura pomocnicza instancji obiektu przekazywana
+    // do struktury sceny za pomocą wskaźnika do "User Data".
+    // W ten sposób przekazywane są dane (aktualnie transformacja) podczas
+    // intersekcji ze sceną w silniku.
+    HdOnyxInstanceData m_InstanceData;
+
     // Struktura przyspieszenia intersekcji Embree zbudowana na podstawie
     // punktów oraz indeksów geometrii. Aby uniknąć transformacji
     // bufora punktów przez transformację obiektu w scenie
@@ -65,11 +80,12 @@ private:
     // Bufor punktów (points / vertices) geometrii.
     VtVec3fArray m_PointArray;
 
+    // Opcjonalny bufor wektorów normalnych. Wektory normalne mogą zostać dodane do geometrii
+    // w celu ich wygładzenia. Alternatywnie - silnik oblicza wektor normalny z wierzchołków punktów trójkąta.
+    std::optional<VtVec3fArray> m_SmoothNormalArray;
+
     // Bufor ztriangulowanych indeksów (indices) punktów geometrii
     pxr::VtVec3iArray m_IndexArray;
-
-    // Transformacja geometri (uwzględnia wszystkie transformacje nadrzędne w hierarchii sceny)
-    pxr::GfMatrix4f m_InstanceTransformMatrix;
 };
 
 

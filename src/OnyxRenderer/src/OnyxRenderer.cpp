@@ -7,6 +7,9 @@
 #include "OnyxHelper.h"
 #include "../../hdOnyx/include/mesh.h"
 
+using namespace Onyx;
+
+
 OnyxRenderer::OnyxRenderer()
 {
     m_EmbreeDevice = rtcNewDevice(NULL);
@@ -19,12 +22,14 @@ OnyxRenderer::OnyxRenderer()
     m_ViewMatInverse.SetIdentity();
 }
 
+
 uint OnyxRenderer::AttachGeometryToScene(const RTCGeometry& geometrySource)
 {
     auto meshID = rtcAttachGeometry(m_EmbreeScene, geometrySource);
 
-    if (meshID == RTC_INVALID_GEOMETRY_ID) {
-        std::cout << "Mesh attachment error for: " << meshID << std::endl;
+    if (meshID == RTC_INVALID_GEOMETRY_ID)
+    {
+        std::cout << "[Onyx] Związanie geometrii do sceny nie jest możliwe dla meshID: " << meshID << std::endl;
     }
 
     return meshID;
@@ -36,7 +41,6 @@ void OnyxRenderer::DetachGeometryFromScene(uint geometryID)
     // Odpinamy geometrię od sceny.
     rtcDetachGeometry(m_EmbreeScene, geometryID);
 }
-
 
 
 OnyxRenderer::~OnyxRenderer()
@@ -64,6 +68,7 @@ void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
     pixelDataStart[3] = 255;
 }
 
+
 pxr::GfVec3f TurboColorMap(float x) {
     float r = 0.1357 + x * ( 4.5974 - x * ( 42.3277 - x * ( 130.5887 - x * ( 150.5666 - x * 58.1375 ))));
     float g = 0.0914 + x * ( 2.1856 + x * ( 4.8052 - x * ( 14.0195 - x * ( 4.2109 + x * 2.7747 ))));
@@ -72,11 +77,23 @@ pxr::GfVec3f TurboColorMap(float x) {
 }
 
 
+void OnyxRenderer::WriteDataToSupportedAOV(const pxr::GfVec3f& colorOutput, const pxr::GfVec3f& normalOutput)
+{
+
+}
+
+
 bool OnyxRenderer::RenderAllAOV()
 {
-    // Zatwierdzamy scenę w obecnej postaci przed wywołaniem testu intersekcji.
-    // Modyfikacje sceny nie są możliwe.
+    // Zatwierdzamy scenę w obecnej postaci przed wywołaniem testów intersekcji.
+    // Modyfikacje sceny nie są możliwe. Modyfikacja sceny przez obiekty HdOnyx* jest możliwa
+    // poprzez HdOnyxRenderParam. Obiekt ten wymusza StopRender na wątku renderowania.
     rtcCommitScene(m_EmbreeScene);
+
+    // W przypadku braku AOV koloru wykonywnanie pełnego algorytmu nie jest konieczne.
+    // Sprawdzamy dostępność tego kanału danych.
+    uint aovIndex;
+    bool hasColorAOV = m_RenderArgument.IsAvailable(pxr::HdAovTokens->color, aovIndex);
 
     // Wyciągamy bufory danych do których silnik będzie wpisywał rezultat renderowania różnych zmiennych.
     auto colorAovBufferData = m_RenderArgument.GetBufferData(pxr::HdAovTokens->color);

@@ -17,7 +17,7 @@ public:
     HdOnyxRenderPass(
         HdRenderIndex *index
         , HdRprimCollection const &collection
-        , const std::shared_ptr<OnyxRenderer>& rendererBackend
+        , const std::shared_ptr<Onyx::OnyxRenderer>& rendererBackend
         , const std::shared_ptr<HdRenderThread>& backgroundRenderThread);
 
     virtual ~HdOnyxRenderPass();
@@ -36,7 +36,7 @@ private:
 
     // Współdzielony wskaźnik do backendu silnika renderującego.
     // Używany do przekazywania danych projekcji oraz buforów pikseli które wymagają wypełnienia.
-    std::shared_ptr<OnyxRenderer> m_RendererBackend;
+    std::shared_ptr<Onyx::OnyxRenderer> m_RendererBackend;
 
     // Współdzielony wskaźnik do wątku który wykonuje renderowanie.
     // Używany do kontroli wątku (Stop, Start) w przypadku aktualizacji danych.
@@ -51,7 +51,7 @@ private:
     // przekazanych silnikowi poprzez strukturę RenderArgument silnika.
     bool m_ArgumentSendRequired = true;
 
-    std::optional<OnyxRenderer::RenderArgument> m_LastSentArgument;
+    std::optional<Onyx::RenderArgument> m_LastSentArgument;
 };
 
 

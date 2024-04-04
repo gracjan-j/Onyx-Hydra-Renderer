@@ -60,7 +60,7 @@ private:
     static const TfTokenVector SUPPORTED_BPRIM_TYPES;
 
     HdResourceRegistrySharedPtr m_ResourceRegistry;
-    std::shared_ptr<OnyxRenderer> m_RendererBackend;
+    std::shared_ptr<Onyx::OnyxRenderer> m_RendererBackend;
 
     // Używamy funkcjonalności USD która pozwala na utworzenie
     // osobnego wątku do renderowania. RenderThread jest niewielką

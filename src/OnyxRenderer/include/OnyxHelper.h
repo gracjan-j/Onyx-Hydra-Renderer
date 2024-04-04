@@ -7,57 +7,60 @@
 // TODO: Przenieś do OnyxRenderer.
 #include "../../hdOnyx/include/mesh.h"
 
-class OnyxHelper
+namespace Onyx
 {
-public:
+    class OnyxHelper
+    {
+    public:
 
-    /**
-    * Metoda pomocnicza służąca do interpolacji danych na podstawie współrzędnych barycentrycznych trójkąta.
-    * @param UV Współrzedne barycentryczne trójkąta
-    * @param V0 Atrybut wierzchołka pierwszego
-    * @param V1 Atrybut wierzchołka drugiego
-    * @param V2 Atrybut wierzchołka trzeciego
-    * @return Atrybut po interpolacji.
-    */
-    static pxr::GfVec3f InterpolateWithBarycentricCoordinates(
-        const pxr::GfVec2f& UV,
-        const pxr::GfVec3f& V0,
-        const pxr::GfVec3f& V1,
-        const pxr::GfVec3f& V2
-    );
-
-
-    /**
-    * Metoda pomocnicza służąca do ewaluacji wektora normalnego na podstawie warunków intersekcji.
-    * Jeśli intersekcja zwraca prawidłową strukturę pomocniczą instancji, sprawdzamy czy udostępnia ona
-    * wskaźnik do bufora wektorów normalnych. Jeśli tak, używamy wektora z bufora, w innym przypadku
-    * korzystamy z wektora geometrycznego powierzchni.
-    *
-    * @param rayHitData Promień który otrzymał poprawne dane intersekcji.
-    * @param embreeScene Scena z którą promień testował intersekcję.
-    * @return Wektor normalny powierzchni w globalnej przestrzeni sceny (world-space).
-    */
-    static pxr::GfVec3f EvaluateHitSurfaceNormal(
-        const RTCRayHit& rayHitData,
-        const RTCScene& embreeScene
-    );
+        /**
+        * Metoda pomocnicza służąca do interpolacji danych na podstawie współrzędnych barycentrycznych trójkąta.
+        * @param UV Współrzedne barycentryczne trójkąta
+        * @param V0 Atrybut wierzchołka pierwszego
+        * @param V1 Atrybut wierzchołka drugiego
+        * @param V2 Atrybut wierzchołka trzeciego
+        * @return Atrybut po interpolacji.
+        */
+        static pxr::GfVec3f InterpolateWithBarycentricCoordinates(
+            const pxr::GfVec2f& UV,
+            const pxr::GfVec3f& V0,
+            const pxr::GfVec3f& V1,
+            const pxr::GfVec3f& V2
+        );
 
 
-    /**
-     * Metoda pomocnicza służąca do tworzenia promienia wychodzącego z kamery (primary ray).
-     *
-     * @param pixelOffsetX Przesunięcie piksela w osi X (index piksela w kontekście szerokości)
-     * @param pixelOffsetY Przesunięcie piksela w osi Y (index piksela w kontekście wysokości)
-     * @param maxX Limit osi X (rozdzielczość X - szerokość)
-     * @param maxY Limit osi Y (rozdzielczość Y - wysokość)
-     * @param inverseProjectionMatrix Odwrotna macierz projekcji kamery
-     * @param inverseViewMatrix Odwrotna macierz transformacji widoku kamery
-     * @return Zainicjalizowany promień kamery dla Embree, gotowy do testu intersekcji.
-     */
-    static RTCRayHit GeneratePrimaryRay(
-        const float& pixelOffsetX, const float& pixelOffsetY,
-        const float& maxX, const float& maxY,
-        const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix
-    );
-};
+        /**
+        * Metoda pomocnicza służąca do ewaluacji wektora normalnego na podstawie warunków intersekcji.
+        * Jeśli intersekcja zwraca prawidłową strukturę pomocniczą instancji, sprawdzamy czy udostępnia ona
+        * wskaźnik do bufora wektorów normalnych. Jeśli tak, używamy wektora z bufora, w innym przypadku
+        * korzystamy z wektora geometrycznego powierzchni.
+        *
+        * @param rayHitData Promień który otrzymał poprawne dane intersekcji.
+        * @param embreeScene Scena z którą promień testował intersekcję.
+        * @return Wektor normalny powierzchni w globalnej przestrzeni sceny (world-space).
+        */
+        static pxr::GfVec3f EvaluateHitSurfaceNormal(
+            const RTCRayHit& rayHitData,
+            const RTCScene& embreeScene
+        );
 
+
+        /**
+         * Metoda pomocnicza służąca do tworzenia promienia wychodzącego z kamery (primary ray).
+         *
+         * @param pixelOffsetX Przesunięcie piksela w osi X (index piksela w kontekście szerokości)
+         * @param pixelOffsetY Przesunięcie piksela w osi Y (index piksela w kontekście wysokości)
+         * @param maxX Limit osi X (rozdzielczość X - szerokość)
+         * @param maxY Limit osi Y (rozdzielczość Y - wysokość)
+         * @param inverseProjectionMatrix Odwrotna macierz projekcji kamery
+         * @param inverseViewMatrix Odwrotna macierz transformacji widoku kamery
+         * @return Zainicjalizowany promień kamery dla Embree, gotowy do testu intersekcji.
+         */
+        static RTCRayHit GeneratePrimaryRay(
+            const float& pixelOffsetX, const float& pixelOffsetY,
+            const float& maxX, const float& maxY,
+            const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix
+        );
+    };
+
+}

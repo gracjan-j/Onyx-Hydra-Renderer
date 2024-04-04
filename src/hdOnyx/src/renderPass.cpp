@@ -11,7 +11,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 HdOnyxRenderPass::HdOnyxRenderPass(
     HdRenderIndex *index
     , HdRprimCollection const &collection
-    , const std::shared_ptr<OnyxRenderer>& rendererBackend
+    , const std::shared_ptr<Onyx::OnyxRenderer>& rendererBackend
     , const std::shared_ptr<HdRenderThread>& backgroundRenderThread)
     : HdRenderPass(index, collection)
 {
@@ -70,7 +70,7 @@ void HdOnyxRenderPass::UnmapAllBuffersFromArgument()
 
 void HdOnyxRenderPass::SendRenderArgumentsToEngine()
 {
-    OnyxRenderer::RenderArgument argumentToSend = {};
+    Onyx::RenderArgument argumentToSend = {};
     uint width, height = 0;
 
     // Mapujemy wszystkie wiązania AOV do mapy buforów

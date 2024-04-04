@@ -43,6 +43,7 @@ add_library(OnyxRenderer STATIC)
 set(ONYX_RENDER_HEADERS
     include/OnyxRenderer.h
     include/OnyxHelper.h
+    include/RenderArgument.h
 )
 
 set(ONYX_RENDER_SOURCES

@@ -2,6 +2,7 @@
 
 #include <embree4/rtcore_scene.h>
 
+using namespace Onyx;
 
 pxr::GfVec3f OnyxHelper::InterpolateWithBarycentricCoordinates(
     const pxr::GfVec2f& UV,

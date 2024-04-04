@@ -63,7 +63,7 @@ void HdOnyxRenderDelegate::_Initialize()
 {
     std::cout << "[hdOnyx] Inicjalizacja Render Delegate" << std::endl;
     m_ResourceRegistry = std::make_shared<HdResourceRegistry>();
-    m_RendererBackend = std::make_shared<OnyxRenderer>();
+    m_RendererBackend = std::make_shared<Onyx::OnyxRenderer>();
 
     m_BackgroundRenderThread = std::make_unique<HdRenderThread>();
 

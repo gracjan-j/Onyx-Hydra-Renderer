@@ -4,6 +4,7 @@
 #include <pxr/imaging/hd/renderThread.h>
 #include <pxr/imaging/hd/tokens.h>
 
+#include "OnyxHelper.h"
 #include "../../hdOnyx/include/mesh.h"
 
 OnyxRenderer::OnyxRenderer()
@@ -95,6 +96,7 @@ RTCRayHit OnyxRenderer::GeneratePrimaryRay(float offsetX, float offsetY, const R
     return rayhit;
 }
 
+
 void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
 {
     pixelDataStart[0] = uint(((normal.data()[0] + 1.0) / 2.0) * 255);
@@ -185,45 +187,7 @@ bool OnyxRenderer::RenderAllAOV()
                 continue;
             }
 
-            // Pobieramy strukturę pomocniczą powiązaną z instancją na podstawie identyfikatora instancji
-            // w scenie, który otrzymujemy przy intersekcji.
-            auto* hitInstanceData = static_cast<pxr::HdOnyxInstanceData*>(
-                rtcGetGeometryUserData(rtcGetGeometry(m_EmbreeScene, primaryRayHit.hit.instID[0])));
-
-            pxr::GfVec3f hitLocalNormal;
-            uint primitiveID = primaryRayHit.hit.primID;
-
-            // Jeśli mamy dostęp do bufora wektorów normalnych, używamy go do otrzymania "wygładzonego" wektora.
-            if (hitInstanceData->SmoothNormalsArray && hitInstanceData->SmoothNormalsArray->size() > primitiveID)
-            {
-                // Każdy punkt ma swój odpowiednik w buforach primvar (Primitive-variable).
-                // Używamy primID (index trójkąta) do otrzymania wektora dla każdego punktu uderzonego trójkąta.
-                auto N0 = hitInstanceData->SmoothNormalsArray->cdata()[3 * primitiveID + 0];
-                auto N1 = hitInstanceData->SmoothNormalsArray->cdata()[3 * primitiveID + 1];
-                auto N2 = hitInstanceData->SmoothNormalsArray->cdata()[3 * primitiveID + 2];
-
-                // Dokonujemy interpolacji danych na podstawie współrzędnych barycentrycznych
-                // których dostarcza Embree dla uderzonego trójkąta.
-                hitLocalNormal = (1.0f - primaryRayHit.hit.u - primaryRayHit.hit.v)
-                    * N0 + primaryRayHit.hit.u
-                    * N1 + primaryRayHit.hit.v
-                    * N2;
-
-                hitLocalNormal.Normalize();
-            }
-            else
-            {
-                // Musimy pobrać wektor geometryczny (obliczony przez Embree na podstawie wierzchołków trójkąta).
-                hitLocalNormal = { primaryRayHit.hit.Ng_x, primaryRayHit.hit.Ng_y, primaryRayHit.hit.Ng_z };
-
-                // Normalizujemy in-place.
-                hitLocalNormal.Normalize();
-            }
-
-            // Dane zawarte w buforach wymagają przekształcenia (object-space).
-            // Używamy macierzy transformacji instancji do transformacji wektora (dir) do world-space.
-            pxr::GfVec3f hitWorldNormal = hitInstanceData->TransformMatrix.TransformDir(hitLocalNormal);
-            hitWorldNormal.Normalize();
+            pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(primaryRayHit, m_EmbreeScene);
 
             // Wpisujemy dane do normal AOV jeśli jest podpięte do silnika.
             if(writeNormalAOV)

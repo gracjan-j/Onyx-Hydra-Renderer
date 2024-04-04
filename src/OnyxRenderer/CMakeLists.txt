@@ -42,10 +42,12 @@ add_library(OnyxRenderer STATIC)
 
 set(ONYX_RENDER_HEADERS
     include/OnyxRenderer.h
+    include/OnyxHelper.h
 )
 
 set(ONYX_RENDER_SOURCES
     src/OnyxRenderer.cpp
+    src/OnyxHelper.cpp
 )
 
 target_link_libraries(OnyxRenderer

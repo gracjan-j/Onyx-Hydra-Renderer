@@ -44,11 +44,21 @@ set(ONYX_RENDER_HEADERS
     include/OnyxRenderer.h
     include/OnyxHelper.h
     include/RenderArgument.h
+
+    # Integratory
+    include/Integrator.h
+    include/OnyxPathtracingIntegrator.h
+
+    # Materiały
+    include/Material.h
 )
 
 set(ONYX_RENDER_SOURCES
     src/OnyxRenderer.cpp
     src/OnyxHelper.cpp
+
+    # Integratory
+    src/OnyxPathtracingIntegrator.cpp
 )
 
 target_link_libraries(OnyxRenderer

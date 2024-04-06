@@ -29,8 +29,16 @@ namespace Onyx
          */
         void MainRenderingEntrypoint(pxr::HdRenderThread* renderThread);
 
+
         bool RenderAllAOV();
 
+
+        /**
+         * Metoda nadpisująca macierze za pomocą których tworzony jest promień kamery
+         * uwzględniający projekcję oraz transformację wirtualnej kamery w scenie.
+         * @param projMatrix Macierz projekcji
+         * @param viewMatrix Macierz odwrotna transformacji kamery
+         */
         void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
 
 
@@ -85,8 +93,6 @@ namespace Onyx
 
     private:
 
-        void WriteDataToSupportedAOV(const pxr::GfVec3f& colorOutput, const pxr::GfVec3f& normalOutput);
-
         /* EMBREE */
 
         /**
@@ -131,7 +137,18 @@ namespace Onyx
          * geometrii z materiałem.
          * Pierwszy materiał w buforze jest materiałem domyślnym używanym w przypadku braku powiązania.
          */
-        std::vector<PathMaterialPair> m_MaterialBuffer;
+        std::vector<PathMaterialPair> m_MaterialDataBuffer;
+
+        /* ŚWIATŁA */
+
+        /**
+         * Wektor danych dotyczących świateł w scenie.
+         * Indeksowanie bufora odbywa się za pomocą indeksu powiązanego z
+         * deskryptorem instancji który jest tworzony podczas tworzenia instancji światła.
+         *
+         * Aktualnie zawarte dane to moc emisji wyrażona w Nitach.
+         */
+        std::vector<pxr::GfVec3f> m_LightDataBuffer;
 
 
         /* PROJEKCJA KAMERY */

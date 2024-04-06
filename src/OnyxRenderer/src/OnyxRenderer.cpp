@@ -23,7 +23,7 @@ OnyxRenderer::OnyxRenderer()
     m_ViewMatInverse.SetIdentity();
 
 
-    m_MaterialBuffer.emplace_back(
+    m_MaterialDataBuffer.emplace_back(
         PathMaterialPair{
             pxr::SdfPath::EmptyPath(),
             // Wymowny kolor materiału sygnalizujący brak powiązania geometria-materiał.
@@ -85,6 +85,11 @@ uint OnyxRenderer::AttachLightInstanceToScene(
     // Doczepiamy instancję światła do sceny silnika.
     // Do rozróżniania obiektów światła służy nam struktura pomocnicza instancji.
     AttachGeometryToScene(rectInstanceGeometrySource);
+
+    m_LightDataBuffer.emplace_back(totalEmissionPower);
+
+    // Zwracamy indeks pod jakim przechowujemy dane światła.
+    return m_LightDataBuffer.size() - 1;
 }
 
 
@@ -97,7 +102,7 @@ void OnyxRenderer::AttachOrUpdateMaterial(
     if (!newMaterial)
     {
         // Szukamy materiału do edycji, materiał powinien już istnieć.
-        for (auto& material : m_MaterialBuffer)
+        for (auto& material : m_MaterialDataBuffer)
         {
             if (material.first != materialPath) continue;
 
@@ -111,7 +116,7 @@ void OnyxRenderer::AttachOrUpdateMaterial(
 
     // Jeśli materiał do edycji nie został znaleziony lub wymaga stworzenia na nowo,
     // dodajemy nowy obiekt do mapy.
-    m_MaterialBuffer.emplace_back(
+    m_MaterialDataBuffer.emplace_back(
         IOR > 1.0
         ? PathMaterialPair(materialPath, std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor)))
         : PathMaterialPair(materialPath, std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor)))
@@ -131,15 +136,14 @@ uint OnyxRenderer::GetIndexOfMaterialByPath(const pxr::SdfPath& materialPath) co
 {
     // Iterujemy przez dostępne materiały szukając materiału którego ścieżka odpowiada
     // ścieżce powiązania (binding) materiału. Funkcja jest wywoływana z poziomu synchronizacji geometrii.
-    for (int index = 0; index < m_MaterialBuffer.size(); index++)
+    for (int index = 0; index < m_MaterialDataBuffer.size(); index++)
     {
-        if(m_MaterialBuffer[index].first != materialPath) continue;
+        if(m_MaterialDataBuffer[index].first != materialPath) continue;
 
         return index;
     }
 
     // W przypadku braku prawidłowego powiązania używamy indeksu domyślnego materiału.
-
     // Bufor przechowuje domyślny materiał na początku wektora.
     return 0;
 }
@@ -169,18 +173,6 @@ void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
     pixelDataStart[2] = uint(((normal.data()[2] + 1.0) / 2.0) * 255);
     pixelDataStart[3] = 255;
 }
-
-
-pxr::GfVec3f TurboColorMap(float x) {
-    float r = 0.1357 + x * ( 4.5974 - x * ( 42.3277 - x * ( 130.5887 - x * ( 150.5666 - x * 58.1375 ))));
-    float g = 0.0914 + x * ( 2.1856 + x * ( 4.8052 - x * ( 14.0195 - x * ( 4.2109 + x * 2.7747 ))));
-    float b = 0.1067 + x * ( 12.5925 - x * ( 60.1097 - x * ( 109.0745 - x * ( 88.5066 - x * 26.8183))));
-    return {r, g, b};
-}
-
-
-void OnyxRenderer::WriteDataToSupportedAOV(const pxr::GfVec3f& colorOutput, const pxr::GfVec3f& normalOutput)
-{}
 
 
 void OnyxRenderer::PrepareRectLightGeometrySource()
@@ -347,7 +339,6 @@ bool OnyxRenderer::RenderAllAOV()
                 )
             );
 
-
             pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(primaryRayHit, m_EmbreeScene);
 
             // Wpisujemy dane do normal AOV jeśli jest podpięte do silnika.
@@ -363,9 +354,11 @@ bool OnyxRenderer::RenderAllAOV()
                 auto g = ((instanceID / 256) % 256);
                 auto b = ((instanceID / (256u * 256u)) % 256u);
 
+                auto dataID = hitInstanceData->DataIndexInBuffer;
+
                 if (!hitInstanceData->Light)
                 {
-                    auto& boundMaterial = m_MaterialBuffer[hitInstanceData->MaterialIndexInBuffer];
+                    auto& boundMaterial = m_MaterialDataBuffer[dataID];
                     auto diffuseColor = boundMaterial.second->Evaluate();
                     pixelDataColor[0] = int(diffuseColor[0] * 255);
                     pixelDataColor[1] = int(diffuseColor[1] * 255);
@@ -374,12 +367,12 @@ bool OnyxRenderer::RenderAllAOV()
                 }
                 else
                 {
-                    pixelDataColor[0] = 255;
-                    pixelDataColor[1] = 0;
-                    pixelDataColor[2] = 0;
+                    auto& lightData = m_LightDataBuffer[dataID];
+                    pixelDataColor[0] = int(lightData[0] * 255);
+                    pixelDataColor[1] = int(lightData[1] * 255);
+                    pixelDataColor[2] = int(lightData[2] * 255);
                     pixelDataColor[3] = 255;
                 }
-
             }
         }
     }

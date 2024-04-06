@@ -16,8 +16,10 @@ struct HdOnyxInstanceData
     GfMatrix4f TransformMatrix;
     VtVec3fArray* SmoothNormalsArray;
 
-    uint MaterialIndexInBuffer;
-    uint LightIndexInBuffer;
+    // Korzystamy z jednego indeksu do bufora danych
+    // W zależności od typu instancji (Light = true/false)
+    // będziemy czerpać dane z innych buforów.
+    uint DataIndexInBuffer;
 
     bool Light;
 };

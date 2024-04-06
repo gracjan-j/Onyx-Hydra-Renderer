@@ -214,8 +214,7 @@ void HdOnyxMesh::Sync(
             .SmoothNormalsArray = m_SmoothNormalArray.has_value()
                 ? &(m_SmoothNormalArray.value())
                 : nullptr,
-            .MaterialIndexInBuffer = matInBufferID,
-            .LightIndexInBuffer = 0,
+            .DataIndexInBuffer = matInBufferID,
             .Light = false
         };
 

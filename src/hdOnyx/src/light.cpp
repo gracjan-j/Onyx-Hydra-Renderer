@@ -77,8 +77,7 @@ void pxr::HdOnyxLight::Sync(HdSceneDelegate* sceneDelegate, HdRenderParam* rende
     // które są zdefiniowanej w tej samej globalnej scenie silnika.
     m_LightInstanceData = HdOnyxInstanceData{
         .Light = true,
-        .LightIndexInBuffer = 0,
-        .MaterialIndexInBuffer = 0,
+        .DataIndexInBuffer = 0,
         .SmoothNormalsArray = nullptr,
         .TransformMatrix = GfMatrix4f(m_InstanceTransformation),
     };
@@ -86,10 +85,13 @@ void pxr::HdOnyxLight::Sync(HdSceneDelegate* sceneDelegate, HdRenderParam* rende
 
     // Dodajemy instancję światła do sceny.
     // Metoda zwróci indeks pod jakim światło
-    onyxRenderParam->GetRendererHandle()->AttachLightInstanceToScene(
+    auto lightIndexInBuffer = onyxRenderParam->GetRendererHandle()->AttachLightInstanceToScene(
         &m_LightInstanceData,
         m_TotalEmissivePower
     );
+
+    // Aktualizujemy indeks do bufora danych świateł po wysłaniu danych do silnika.
+    m_LightInstanceData.DataIndexInBuffer = lightIndexInBuffer;
 
     *dirtyBits = HdLight::Clean;
 }

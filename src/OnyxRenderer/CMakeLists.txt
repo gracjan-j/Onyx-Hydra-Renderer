@@ -51,6 +51,7 @@ set(ONYX_RENDER_HEADERS
 
     # Materiały
     include/Material.h
+    include/DiffuseMaterial.h
 )
 
 set(ONYX_RENDER_SOURCES
@@ -59,6 +60,9 @@ set(ONYX_RENDER_SOURCES
 
     # Integratory
     src/OnyxPathtracingIntegrator.cpp
+
+    # Materiały
+    src/DiffuseMaterial.cpp
 )
 
 target_link_libraries(OnyxRenderer

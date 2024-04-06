@@ -7,7 +7,7 @@
 namespace Onyx
 {
     /**
-     * Klasa abstrakcyjna materiału reprezentowanego przez funkcję BXDF (BRDF / BTDF)
+     * Interfejs materiału reprezentowanego przez funkcję BXDF (BRDF / BTDF)
      * który pozwala na ewaluację wymiany energi na powierzchni obiektów oraz generowanie
      * kierunków odbicia / załamania dla których wymiana energii jest najmniej stratna (Importance Sampling).
      */
@@ -21,14 +21,20 @@ namespace Onyx
          * na podstawie wykonania procesu Importance Sampling.
          * @return Kierunek odbicia załamania w świecie sceny (world-space).
          */
-        virtual pxr::GfVec3f Sample() = 0;
+        virtual pxr::GfVec3f Sample()
+        {
+            return {0.0, 0.0, 1.0};
+        };
 
 
         /**
          * Za pomocą tej metody materiał powinien obliczyć wymianę energi dla wektora wejściowego i wyjściowego
          * biorąc pod uwagę swoją charakterystykę.
          */
-        virtual pxr::GfVec3f Evaluate() = 0;
+        virtual pxr::GfVec3f Evaluate()
+        {
+            return {0.0, 0.0, 0.0};
+        };
 
 
         /**
@@ -37,7 +43,10 @@ namespace Onyx
          * @param sample Kierunek odbicia / załamania dla którego obliczone zostanie prawdopodobieństwo
          * @return Szacunek prawdopodobieństwa dla kierunku.
          */
-        virtual float PDF(pxr::GfVec3f sample) = 0;
+        virtual float PDF(pxr::GfVec3f sample)
+        {
+            return 0.0;
+        };
     };
 
 }

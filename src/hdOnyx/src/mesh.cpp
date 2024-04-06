@@ -167,7 +167,6 @@ void HdOnyxMesh::Sync(
         topologyChanged = true;
     }
 
-
     // Jeśli topologia geometrii uległa zmianie, musimy wywołać budowę triangle BVH geometrii.
     if (topologyChanged)
     {
@@ -185,9 +184,13 @@ void HdOnyxMesh::Sync(
         rtcCommitScene(m_MeshRTAS);
     }
 
+    // Sprawdzamy czy materiał powiązany z geometrią został zmieniony.
+    // Powiązanie materiału oraz geometrii odbywa sięza pomocą ścieżki do rprima typu "Material".
+    bool isMaterialBindingDirty = *dirtyBits & HdChangeTracker::DirtyMaterialId != 0;
 
     // Jeśli mesh nie został zainicjalizowany lub jego transformacja uległa zmianie
-    if (rebuildMesh || HdChangeTracker::IsTransformDirty(*dirtyBits, primID))
+    if (rebuildMesh || topologyChanged || isMaterialBindingDirty
+        || HdChangeTracker::IsTransformDirty(*dirtyBits, primID))
     {
         // Jeśli instancja została wcześniej podpięta pod główną scenę
         if (m_InstanceAttachmentID.has_value())
@@ -199,12 +202,19 @@ void HdOnyxMesh::Sync(
             m_InstanceAttachmentID = std::nullopt;
         }
 
+        // Pobieramy ścieżkę do materiału przypisaną geometrii.
+        SdfPath materialPath = sceneDelegate->GetMaterialId(primID);
+        // Szukamy materiału "po ścieżce" w mapie materialów silnika.
+        // Silnik zwróci index materiału w buforze materiałów.
+        auto matInBufferID = onyxRenderParam->GetRendererHandle()->GetIndexOfMaterialByPath(materialPath);
+
         // Pobieramy aktualną transformację obiektu i uzupełniamy nią strukturę danych instancji.
         m_InstanceData = {
             .TransformMatrix = GfMatrix4f(sceneDelegate->GetTransform(primID)),
             .SmoothNormalsArray = m_SmoothNormalArray.has_value()
                 ? &(m_SmoothNormalArray.value())
                 : nullptr,
+            .MaterialIndexInBuffer = matInBufferID
         };
 
         // Tworzymy nową geometrię typu - instance

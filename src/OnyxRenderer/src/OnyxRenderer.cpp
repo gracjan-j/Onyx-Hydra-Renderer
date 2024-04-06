@@ -4,8 +4,10 @@
 #include <pxr/imaging/hd/renderThread.h>
 #include <pxr/imaging/hd/tokens.h>
 
-#include "OnyxHelper.h"
+#include "../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks/ImageIO.framework/Headers/CGImageAnimation.h"
 #include "../../hdOnyx/include/mesh.h"
+#include "DiffuseMaterial.h"
+#include "OnyxHelper.h"
 
 using namespace Onyx;
 
@@ -20,6 +22,14 @@ OnyxRenderer::OnyxRenderer()
 
     m_ProjectionMatInverse.SetIdentity();
     m_ViewMatInverse.SetIdentity();
+
+
+    m_MaterialBuffer.emplace_back(
+        PathMaterialPair{
+            pxr::SdfPath::EmptyPath(),
+            std::make_unique<DiffuseMaterial>(pxr::GfVec3f(0.18))
+        }
+    );
 }
 
 
@@ -36,10 +46,60 @@ uint OnyxRenderer::AttachGeometryToScene(const RTCGeometry& geometrySource)
 }
 
 
+void OnyxRenderer::AttachOrUpdateMaterial(
+    const pxr::GfVec3f& diffuseColor,
+    const float& IOR,
+    const pxr::SdfPath& materialPath,
+    bool newMaterial)
+{
+    if (!newMaterial)
+    {
+        // Szukamy materiału do edycji, materiał powinien już istnieć.
+        for (auto& material : m_MaterialBuffer)
+        {
+            if (material.first != materialPath) continue;
+
+            material.second.reset();
+
+            material.second = IOR > 1.0
+            ? std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor))
+            : std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor));
+        }
+    }
+
+    // Jeśli materiał do edycji nie został znaleziony lub wymaga stworzenia na nowo,
+    // dodajemy nowy obiekt do mapy.
+    m_MaterialBuffer.emplace_back(
+        IOR > 1.0
+        ? PathMaterialPair(materialPath, std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor)))
+        : PathMaterialPair(materialPath, std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor)))
+    );
+
+}
+
+
 void OnyxRenderer::DetachGeometryFromScene(uint geometryID)
 {
     // Odpinamy geometrię od sceny.
     rtcDetachGeometry(m_EmbreeScene, geometryID);
+}
+
+
+uint OnyxRenderer::GetIndexOfMaterialByPath(const pxr::SdfPath& materialPath)
+{
+    // Iterujemy przez dostępne materiały szukając materiału którego ścieżka odpowiada
+    // ścieżce powiązania (binding) materiału. Funkcja jest wywoływana z poziomu synchronizacji geometrii.
+    for (int index = 0; index < m_MaterialBuffer.size(); index++)
+    {
+        if(m_MaterialBuffer[index].first != materialPath) continue;
+
+        return index;
+    }
+
+    // W przypadku braku prawidłowego powiązania używamy indeksu domyślnego materiału.
+
+    // Bufor przechowuje domyślny materiał na początku wektora.
+    return 0;
 }
 
 
@@ -167,6 +227,16 @@ bool OnyxRenderer::RenderAllAOV()
                 continue;
             }
 
+            // Pobieramy strukturę pomocniczą powiązaną z instancją na podstawie identyfikatora instancji
+            // w scenie, który otrzymujemy przy intersekcji.
+            auto* hitInstanceData = static_cast<pxr::HdOnyxInstanceData*>(
+                rtcGetGeometryUserData(
+                    // Identyfikator instancji zakłada jedno-poziomowy instancing ([0]).
+                    // Zgodne z założeniem w HdOnyxMesh który tworzy geometrię.
+                    rtcGetGeometry(m_EmbreeScene, primaryRayHit.hit.instID[0])
+                )
+            );
+
             pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(primaryRayHit, m_EmbreeScene);
 
             // Wpisujemy dane do normal AOV jeśli jest podpięte do silnika.
@@ -182,9 +252,11 @@ bool OnyxRenderer::RenderAllAOV()
                 auto g = ((instanceID / 256) % 256);
                 auto b = ((instanceID / (256u * 256u)) % 256u);
 
-                pixelDataColor[0] = r;
-                pixelDataColor[1] = g;
-                pixelDataColor[2] = b;
+                auto& boundMaterial = m_MaterialBuffer[hitInstanceData->MaterialIndexInBuffer];
+                auto diffuseColor = boundMaterial.second->Sample();
+                pixelDataColor[0] = int(diffuseColor[0] * 255);
+                pixelDataColor[1] = int(diffuseColor[1] * 255);
+                pixelDataColor[2] = int(diffuseColor[2] * 255);
                 pixelDataColor[3] = 255;
             }
         }

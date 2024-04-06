@@ -2,6 +2,7 @@
 #include "renderPass.h"
 #include "renderBuffer.h"
 #include "mesh.h"
+#include "material.h"
 
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/camera.h>
@@ -10,9 +11,11 @@
 
 #include <iostream>
 
+#include "../include/material.h"
+
 
 PXR_NAMESPACE_OPEN_SCOPE
-    const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_RPRIM_TYPES =
+const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_RPRIM_TYPES =
 {
     HdPrimTypeTokens->mesh,
 };
@@ -21,6 +24,7 @@ PXR_NAMESPACE_OPEN_SCOPE
 const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_SPRIM_TYPES =
 {
     HdPrimTypeTokens->camera,
+    HdPrimTypeTokens->material,
 };
 
 
@@ -167,7 +171,8 @@ HdSprim *HdOnyxRenderDelegate::CreateSprim(TfToken const& typeId,
 {
     // Niezbędne do otrzymania poprawnych danych z UsdImagingGLEngine
     // w RenderPass.
-    if (typeId == HdPrimTypeTokens->camera) return new HdCamera(sprimId);
+    if (typeId == HdPrimTypeTokens->camera)     return new HdCamera(sprimId);
+    if (typeId == HdPrimTypeTokens->material)   return new HdOnyxMaterial(sprimId);
 
     TF_CODING_ERROR("Unknown Sprim type=%s id=%s",
         typeId.GetText(),

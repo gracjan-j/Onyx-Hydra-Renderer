@@ -15,6 +15,7 @@ struct HdOnyxInstanceData
     // Transformacja instancji.
     GfMatrix4f TransformMatrix;
     VtVec3fArray* SmoothNormalsArray;
+    uint MaterialIndexInBuffer;
 };
 
 

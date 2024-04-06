@@ -29,10 +29,15 @@ protected:
 
 
 private:
-    void SendCameraUpdateToRenderer(HdRenderPassStateSharedPtr const& renderPassState);
+    void Initialise(HdRenderPassStateSharedPtr const& renderPassState);
 
+    void MapAllBuffersToArgument();
     void UnmapAllBuffersFromArgument();
-    void SendRenderArgumentsToEngine();
+
+
+    void CheckAndUpdateArgumentBindings(HdRenderPassStateSharedPtr const& renderPassState);
+    void CheckAndUpdateArgumentMatrices(HdRenderPassStateSharedPtr const& renderPassState);
+
 
     // Współdzielony wskaźnik do backendu silnika renderującego.
     // Używany do przekazywania danych projekcji oraz buforów pikseli które wymagają wypełnienia.
@@ -51,7 +56,7 @@ private:
     // przekazanych silnikowi poprzez strukturę RenderArgument silnika.
     bool m_ArgumentSendRequired = true;
 
-    std::optional<Onyx::RenderArgument> m_LastSentArgument;
+    std::shared_ptr<Onyx::RenderArgument> m_RenderArgument;
 };
 
 

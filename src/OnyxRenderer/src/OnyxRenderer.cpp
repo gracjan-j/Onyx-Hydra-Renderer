@@ -16,13 +16,6 @@ OnyxRenderer::OnyxRenderer()
     m_EmbreeDevice = rtcNewDevice(NULL);
     m_EmbreeScene = rtcNewScene(m_EmbreeDevice);
 
-    m_ProjectionMat.SetIdentity();
-    m_ViewMat.SetIdentity();
-
-    m_ProjectionMatInverse.SetIdentity();
-    m_ViewMatInverse.SetIdentity();
-
-
     m_MaterialDataBuffer.emplace_back(
         PathMaterialPair{
             pxr::SdfPath::EmptyPath(),
@@ -156,16 +149,6 @@ OnyxRenderer::~OnyxRenderer()
 }
 
 
-void OnyxRenderer::SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix)
-{
-    m_ProjectionMat = projMatrix;
-    m_ViewMat = viewMatrix;
-
-    m_ProjectionMatInverse = m_ProjectionMat.GetInverse();
-    m_ViewMatInverse = m_ViewMat.GetInverse();
-}
-
-
 void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
 {
     pixelDataStart[0] = uint(((normal.data()[0] + 1.0) / 2.0) * 255);
@@ -255,11 +238,11 @@ bool OnyxRenderer::RenderAllAOV()
     // W przypadku braku AOV koloru wykonywnanie pełnego algorytmu nie jest konieczne.
     // Sprawdzamy dostępność tego kanału danych.
     uint aovIndex;
-    bool hasColorAOV = m_RenderArgument.IsAvailable(pxr::HdAovTokens->color, aovIndex);
+    bool hasColorAOV = m_RenderArgument->IsAvailable(pxr::HdAovTokens->color, aovIndex);
 
     // Wyciągamy bufory danych do których silnik będzie wpisywał rezultat renderowania różnych zmiennych.
-    auto colorAovBufferData = m_RenderArgument.GetBufferData(pxr::HdAovTokens->color);
-    auto normalAovBufferData = m_RenderArgument.GetBufferData(pxr::HdAovTokens->normal);
+    auto colorAovBufferData = m_RenderArgument->GetBufferData(pxr::HdAovTokens->color);
+    auto normalAovBufferData = m_RenderArgument->GetBufferData(pxr::HdAovTokens->normal);
 
     bool writeColorAOV = colorAovBufferData.has_value();
     bool writeNormalAOV = normalAovBufferData.has_value();
@@ -280,12 +263,12 @@ bool OnyxRenderer::RenderAllAOV()
     }
 
     // Dla każdego pixela w buforze.
-    for (auto currentY = 0; currentY < m_RenderArgument.height; currentY++)
+    for (auto currentY = 0; currentY < m_RenderArgument->Height; currentY++)
     {
-        for (auto currentX = 0; currentX < m_RenderArgument.width; currentX++)
+        for (auto currentX = 0; currentX < m_RenderArgument->Width; currentX++)
         {
             // Obliczamy jedno-wymiarowy offset pixela w buforze 2D.
-            uint32_t pixelOffsetInBuffer = (currentY * m_RenderArgument.width) + currentX;
+            uint32_t pixelOffsetInBuffer = (currentY * m_RenderArgument->Width) + currentX;
 
             // Znajdujemy początek danych piksela w buforach AOV
             uint8_t* pixelDataNormal = writeNormalAOV
@@ -302,8 +285,8 @@ bool OnyxRenderer::RenderAllAOV()
             // Generujemy promień z kamery.
             RTCRayHit primaryRayHit = OnyxHelper::GeneratePrimaryRay(
                 currentX, currentY,
-                m_RenderArgument.width, m_RenderArgument.height,
-                m_ProjectionMatInverse, m_ViewMatInverse
+                m_RenderArgument->Width, m_RenderArgument->Height,
+                m_RenderArgument->MatrixInverseProjection, m_RenderArgument->MatrixInverseView
             );
 
             // Dokonujemy testu intersekcji promienia ze sceną

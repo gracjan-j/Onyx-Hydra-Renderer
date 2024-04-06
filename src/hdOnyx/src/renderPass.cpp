@@ -25,6 +25,10 @@ HdOnyxRenderPass::~HdOnyxRenderPass()
     // Jeśli wątek renderuje, zatrzymujemy
     if (m_RenderThread->IsRendering()) m_RenderThread->StopRender();
 
+    UnmapAllBuffersFromArgument();
+    m_AovBindingVector->clear();
+
+    m_RenderArgument.reset();
     m_RenderThread.reset();
     m_RendererBackend.reset();
 
@@ -32,16 +36,24 @@ HdOnyxRenderPass::~HdOnyxRenderPass()
 }
 
 
-void HdOnyxRenderPass::SendCameraUpdateToRenderer(HdRenderPassStateSharedPtr const& renderPassState)
+void HdOnyxRenderPass::Initialise(HdRenderPassStateSharedPtr const& renderPassState)
 {
-    // Pobieramy macierze kamery. RenderPass otrzymuje macierze od silnika UsdImagingGLEngine.
-    // Niezbędne jest ustawienie poprawnej ścieżki kamery przed wywołaniem renderowania.
-    const GfMatrix4d viewMatrix = renderPassState->GetWorldToViewMatrix();
-    const GfMatrix4d projMatrix = renderPassState->GetProjectionMatrix();
+    // Pobieramy wektor buforów AOV
+    m_AovBindingVector = renderPassState->GetAovBindings();
 
-    if(m_RenderThread->IsRendering()) m_RenderThread->StopRender();
+    if (!m_RenderArgument)
+    {
+        m_RenderArgument = std::make_shared<Onyx::RenderArgument>();
+        m_RendererBackend->SetRenderArgument(m_RenderArgument);
+    }
 
-    m_RendererBackend->SetCameraMatrices(projMatrix, viewMatrix);
+    // Mapujemy wszystkie bufory AOV do struktury przekazywanej silnikowi..
+    MapAllBuffersToArgument();
+
+    m_RenderArgument->Width = m_AovBindingVector.value()[0].renderBuffer->GetWidth();
+    m_RenderArgument->Height = m_AovBindingVector.value()[0].renderBuffer->GetHeight();
+
+    CheckAndUpdateArgumentMatrices(renderPassState);
 }
 
 
@@ -51,12 +63,8 @@ void HdOnyxRenderPass::UnmapAllBuffersFromArgument()
     // Zatrzymujemy operację renderowania jeśli jest aktualnym stanem silnika.
     if (m_RenderThread->IsRendering()) m_RenderThread->StopRender();
 
-    // Dokonujemy invalidacji RenderArgument
-    m_LastSentArgument = std::nullopt;
-    m_ArgumentSendRequired = true;
-
     // Wykonujemy operację unmap na każdym buforze
-    for (auto& aovBinding : m_AovBindingVector.value())
+    for (auto& aovBinding: m_AovBindingVector.value())
     {
         auto* aovBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
 
@@ -65,42 +73,75 @@ void HdOnyxRenderPass::UnmapAllBuffersFromArgument()
             aovBuffer->Unmap();
         }
     }
+
+    m_RenderArgument->MappedBuffers.clear();
+    m_RenderArgument->MappedLayout.clear();
 }
 
 
-void HdOnyxRenderPass::SendRenderArgumentsToEngine()
+void HdOnyxRenderPass::MapAllBuffersToArgument()
 {
-    Onyx::RenderArgument argumentToSend = {};
-    uint width, height = 0;
+    // Zatrzymujemy operację renderowania jeśli jest aktualnym stanem silnika.
+    if (m_RenderThread->IsRendering()) m_RenderThread->StopRender();
 
     // Mapujemy wszystkie wiązania AOV do mapy buforów
-    for (auto& aovBinding : m_AovBindingVector.value())
+    for (auto& aovBinding: m_AovBindingVector.value())
     {
         auto* aovBuffer = static_cast<HdOnyxRenderBuffer*>(aovBinding.renderBuffer);
-        width = aovBuffer->GetWidth(); height = aovBuffer->GetHeight();
 
         // Mapujemy bufor (stajemy się jego użytkownikami)
         auto mapBuffer = std::pair<void*, size_t>(aovBuffer->Map(), HdDataSizeOfFormat(aovBuffer->GetFormat()));
 
         // Dodajemy wskaźnik do mapy wskaźników
-        argumentToSend.mappedBuffers.emplace_back(mapBuffer);
+        m_RenderArgument->MappedBuffers.emplace_back(mapBuffer);
 
-        auto mapLayout = std::pair<pxr::TfToken, uint>(aovBinding.aovName, argumentToSend.mappedBuffers.size() - 1);
+        auto mapLayout = std::pair<pxr::TfToken, uint>(aovBinding.aovName, m_RenderArgument->MappedBuffers.size() - 1);
 
         // Dodajemy informacje o zmapowanym buforze oraz jego indeksie w wektorze buforów
-        argumentToSend.mappedLayout.emplace_back(mapLayout);
+        m_RenderArgument->MappedLayout.emplace_back(mapLayout);
     }
-
-    argumentToSend.height = height;
-    argumentToSend.width = width;
-
-    // Wysyłamy argument do silnika. Silnik będzie wypisywał dane wyjściowe do nowych buforów.
-    m_RendererBackend->SetRenderArguments(argumentToSend);
-
-    m_LastSentArgument = argumentToSend;
-    m_ArgumentSendRequired = false;
 }
 
+
+void HdOnyxRenderPass::CheckAndUpdateArgumentBindings(HdRenderPassStateSharedPtr const& renderPassState)
+{
+    auto& newFrameBindings = renderPassState->GetAovBindings();
+
+    // Jeśli nowy stan określa taką samą ilość AOV
+    if (m_AovBindingVector->size() == newFrameBindings.size())
+    {
+        auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(newFrameBindings[0].renderBuffer);
+
+        // Jeśli nie zmieniły się wymiary buforów
+        // (wszystkie bufory mają takie same wymiary, sprawdzamy pierwszy)
+        if (!m_RenderArgument->SizeChanged(renderBuffer->GetWidth(), renderBuffer->GetHeight()))
+        {
+            // Wychodzimy z metody.
+            return;
+        }
+    }
+
+    // Czeka nas aktualizacja danych. Zatrzymujemy silnik.
+    // Przestajemy być użytkownikami render-buforów.
+    UnmapAllBuffersFromArgument();
+
+    // Dokonujemy inicjalizacji na nowo, bufory zostaną zmapowane.
+    Initialise(renderPassState);
+}
+
+
+void HdOnyxRenderPass::CheckAndUpdateArgumentMatrices(HdRenderPassStateSharedPtr const& renderPassState)
+{
+    auto passProjection = renderPassState->GetProjectionMatrix();
+    auto passView = renderPassState->GetWorldToViewMatrix();
+
+    // Sprawdzamy zmiany w danych macierzy
+    if (!m_RenderArgument->ProjectionChanged(passProjection, passView)) return;
+
+    // Zmiana macierzy nie wymaga zmian w mapowaniu buforów. Podmieniamy jedynie dane.
+    m_RenderArgument->MatrixInverseProjection = passProjection.GetInverse();
+    m_RenderArgument->MatrixInverseView = passView.GetInverse();
+}
 
 
 void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassState, TfTokenVector const &renderTags)
@@ -113,50 +154,20 @@ void HdOnyxRenderPass::_Execute(HdRenderPassStateSharedPtr const& renderPassStat
         return;
     }
 
-    // Wektor powiązań nie istnieje, pierwsze wykonanie.
     if (!m_AovBindingVector.has_value())
     {
-        m_AovBindingVector = renderPassState->GetAovBindings();
-        m_ArgumentSendRequired = true;
-
-        SendCameraUpdateToRenderer(renderPassState);
+        Initialise(renderPassState);
     }
-
-    // Kolejne wykonanie, dokonamy sprawdzenia ważności danych
-    if (m_AovBindingVector.has_value() && m_LastSentArgument.has_value())
+    else
     {
-        auto& stateAovBindings = renderPassState->GetAovBindings();
-
-        // Jeśli nowy stan określa inną ilość AOV, musimy dokonać aktualizacji
-        if (m_AovBindingVector->size() != stateAovBindings.size())
-        {
-            // Ustawia flagę Argument Send Required.
-            UnmapAllBuffersFromArgument();
-            m_AovBindingVector = stateAovBindings;
-        }
-        else
-        {
-            auto* renderBuffer = static_cast<HdOnyxRenderBuffer*>(stateAovBindings[0].renderBuffer);
-
-            // Jeśli zmieniły się wymiary okna = zmienił się rozmiar wymaganego renderu.
-            if (m_LastSentArgument->SizeChanged(renderBuffer->GetWidth(), renderBuffer->GetHeight()))
-            {
-                UnmapAllBuffersFromArgument();
-                m_AovBindingVector = stateAovBindings;
-
-                // Dodatkowo, aktualizujemy dane kamery.
-                SendCameraUpdateToRenderer(renderPassState);
-            }
-        }
+        // Sprawdzamy czy dane dotyczące buforów AOV oraz kamery są aktualne.
+        CheckAndUpdateArgumentBindings(renderPassState);
+        CheckAndUpdateArgumentMatrices(renderPassState);
     }
 
-    if (m_ArgumentSendRequired)
-    {
-        SendRenderArgumentsToEngine();
-    }
-
-    m_RenderThread->StartRender();
+    if(!m_RenderThread->IsRendering()) m_RenderThread->StartRender();
 }
+
 
 bool HdOnyxRenderPass::IsConverged() const
 {

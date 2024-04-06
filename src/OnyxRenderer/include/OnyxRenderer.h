@@ -32,15 +32,10 @@ namespace Onyx
 
         bool RenderAllAOV();
 
-
-        /**
-         * Metoda nadpisująca macierze za pomocą których tworzony jest promień kamery
-         * uwzględniający projekcję oraz transformację wirtualnej kamery w scenie.
-         * @param projMatrix Macierz projekcji
-         * @param viewMatrix Macierz odwrotna transformacji kamery
-         */
-        void SetCameraMatrices(pxr::GfMatrix4d projMatrix, pxr::GfMatrix4d viewMatrix);
-
+        void SetRenderArgument(const std::shared_ptr<RenderArgument>& renderArgument)
+        {
+            m_RenderArgument = renderArgument;
+        }
 
         /**
          * Metoda podpinająca geometrię do sceny Embree silnika.
@@ -87,8 +82,6 @@ namespace Onyx
 
         RTCDevice GetEmbreeDeviceHandle() const { return m_EmbreeDevice; };
         RTCScene  GetEmbreeSceneHandle() const  { return m_EmbreeScene; };
-
-        void SetRenderArguments(const RenderArgument& renderArgument) { m_RenderArgument = renderArgument; }
 
 
     private:
@@ -151,33 +144,10 @@ namespace Onyx
         std::vector<pxr::GfVec3f> m_LightDataBuffer;
 
 
-        /* PROJEKCJA KAMERY */
-
-        /**
-         * Macierz projekcji stworzona na podstawie parametrów aktualnie wybranej kamery w scenie.
-         */
-        pxr::GfMatrix4d m_ProjectionMat;
-
-        /**
-         * Macierz transformacji kamery z object->world space.
-         * Macierz view jest odwrotnością macierzy transformacji kamery w scenie.
-         */
-        pxr::GfMatrix4d m_ViewMat;
-
-        /**
-         * Macierz odwrotna projekcji
-         */
-        pxr::GfMatrix4d m_ProjectionMatInverse;
-
-        /**
-         * Macierz odwrotna widoku
-         */
-        pxr::GfMatrix4d m_ViewMatInverse;
-
         /**
          * Struktura przechowująca bufory wyjściowe oraz rozmiar wymaganego renderu.
          */
-        RenderArgument m_RenderArgument;
+        std::shared_ptr<RenderArgument> m_RenderArgument;
     };
 
 }

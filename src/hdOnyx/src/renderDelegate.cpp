@@ -3,6 +3,7 @@
 #include "renderBuffer.h"
 #include "mesh.h"
 #include "material.h"
+#include "light.h"
 
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/camera.h>
@@ -25,6 +26,11 @@ const TfTokenVector HdOnyxRenderDelegate::SUPPORTED_SPRIM_TYPES =
 {
     HdPrimTypeTokens->camera,
     HdPrimTypeTokens->material,
+
+    // Światła
+    // Na ten moment, silnik wspiera jedynie światło o kształcie czworokątu
+    // które jest stworzone z dwóch trójkątów w scenie.
+    HdPrimTypeTokens->rectLight,
 };
 
 
@@ -173,6 +179,10 @@ HdSprim *HdOnyxRenderDelegate::CreateSprim(TfToken const& typeId,
     // w RenderPass.
     if (typeId == HdPrimTypeTokens->camera)     return new HdCamera(sprimId);
     if (typeId == HdPrimTypeTokens->material)   return new HdOnyxMaterial(sprimId);
+
+    // Silnik wspiera światło kształtu RectLight.
+    if (typeId == HdPrimTypeTokens->rectLight)  return new HdOnyxLight(sprimId);
+
 
     TF_CODING_ERROR("Unknown Sprim type=%s id=%s",
         typeId.GetText(),

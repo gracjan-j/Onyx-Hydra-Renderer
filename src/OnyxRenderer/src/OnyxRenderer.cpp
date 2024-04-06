@@ -4,7 +4,6 @@
 #include <pxr/imaging/hd/renderThread.h>
 #include <pxr/imaging/hd/tokens.h>
 
-#include "../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.4.sdk/System/Library/Frameworks/ImageIO.framework/Headers/CGImageAnimation.h"
 #include "../../hdOnyx/include/mesh.h"
 #include "DiffuseMaterial.h"
 #include "OnyxHelper.h"
@@ -27,7 +26,8 @@ OnyxRenderer::OnyxRenderer()
     m_MaterialBuffer.emplace_back(
         PathMaterialPair{
             pxr::SdfPath::EmptyPath(),
-            std::make_unique<DiffuseMaterial>(pxr::GfVec3f(0.18))
+            // Wymowny kolor materiału sygnalizujący brak powiązania geometria-materiał.
+            std::make_unique<DiffuseMaterial>(pxr::GfVec3f(1.0, 0.0, 0.85))
         }
     );
 }
@@ -43,6 +43,48 @@ uint OnyxRenderer::AttachGeometryToScene(const RTCGeometry& geometrySource)
     }
 
     return meshID;
+}
+
+
+uint OnyxRenderer::AttachLightInstanceToScene(
+    pxr::HdOnyxInstanceData* instanceData,
+    const pxr::GfVec3f& totalEmissionPower)
+{
+    if(!m_RectLightPrimitiveScene.has_value())
+    {
+        PrepareRectLightGeometrySource();
+    }
+
+    // Tworzymy nową geometrię typu - instance
+    // Korzystamy w ten sposób z możliwości utworzenia wirtualnej kopii bazowej geometrii
+    // z własnym przekształceniem, zamiast modyfikacji bazowej geometrii transformacją.
+    RTCGeometry rectInstanceGeometrySource = rtcNewGeometry(m_EmbreeDevice, RTC_GEOMETRY_TYPE_INSTANCE);
+
+    // Ustawiamy źródło instancji - bazowy obiekt geometrii
+    rtcSetGeometryInstancedScene(rectInstanceGeometrySource, m_RectLightPrimitiveScene.value());
+    rtcSetGeometryTimeStepCount(rectInstanceGeometrySource, 1);
+
+    // Wywołanie funkcji SetGeometryTransform jest możliwe tylko i wyłącznie na
+    // instancjach. Korzystająć z prymitywnego typu geometrii - triangle w Embree
+    // możemy osiągnąć poprawną transformację, transformując wierzchołki (punkty) geometrii.
+    // Jednak, lepszym rozwiązaniem jest wykorzystanie instancingu.
+    rtcSetGeometryTransform(
+        rectInstanceGeometrySource,
+        0,
+        RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR,
+        instanceData->TransformMatrix.GetArray()
+    );
+
+    // Powiązujemy małą strukturę z instancją. Podczas testu intersekcji,
+    // możemy otrzymać poniższy wskaźnik do struktury powiązany z instancją.
+    rtcSetGeometryUserData(rectInstanceGeometrySource, instanceData);
+
+    // Finalnie wnioskujemy o utworzenie geometrii.
+    rtcCommitGeometry(rectInstanceGeometrySource);
+
+    // Doczepiamy instancję światła do sceny silnika.
+    // Do rozróżniania obiektów światła służy nam struktura pomocnicza instancji.
+    AttachGeometryToScene(rectInstanceGeometrySource);
 }
 
 
@@ -85,7 +127,7 @@ void OnyxRenderer::DetachGeometryFromScene(uint geometryID)
 }
 
 
-uint OnyxRenderer::GetIndexOfMaterialByPath(const pxr::SdfPath& materialPath)
+uint OnyxRenderer::GetIndexOfMaterialByPath(const pxr::SdfPath& materialPath) const
 {
     // Iterujemy przez dostępne materiały szukając materiału którego ścieżka odpowiada
     // ścieżce powiązania (binding) materiału. Funkcja jest wywoływana z poziomu synchronizacji geometrii.
@@ -132,14 +174,82 @@ void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
 pxr::GfVec3f TurboColorMap(float x) {
     float r = 0.1357 + x * ( 4.5974 - x * ( 42.3277 - x * ( 130.5887 - x * ( 150.5666 - x * 58.1375 ))));
     float g = 0.0914 + x * ( 2.1856 + x * ( 4.8052 - x * ( 14.0195 - x * ( 4.2109 + x * 2.7747 ))));
-    float b = 0.1067 + x * ( 12.5925 - x * ( 60.1097 - x * ( 109.0745 - x * ( 88.5066 - x * 26.8183 ))));
+    float b = 0.1067 + x * ( 12.5925 - x * ( 60.1097 - x * ( 109.0745 - x * ( 88.5066 - x * 26.8183))));
     return {r, g, b};
 }
 
 
 void OnyxRenderer::WriteDataToSupportedAOV(const pxr::GfVec3f& colorOutput, const pxr::GfVec3f& normalOutput)
-{
+{}
 
+
+void OnyxRenderer::PrepareRectLightGeometrySource()
+{
+    m_RectLightPrimitiveScene = rtcNewScene(m_EmbreeDevice);
+
+    // Tworzymy bazową geometrię stworzoną z dwóch trójkątów na płaszczyźnie XY.
+    RTCGeometry localRectangleGeometry = rtcNewGeometry(m_EmbreeDevice, RTC_GEOMETRY_TYPE_TRIANGLE);
+
+    // Do zdefiniowania czworokąta wystarczą cztery dodatkowo indeksowane wierzchołki.
+    // Każdy wierzchołek to punkt 3D.
+    // Wypełniamy bufor utworzony przez Embree.
+    auto* pointBuffer = (float*)rtcSetNewGeometryBuffer(
+        localRectangleGeometry,
+        RTC_BUFFER_TYPE_VERTEX,
+        0,
+        RTC_FORMAT_FLOAT3,
+        3 * sizeof(float),
+        4);
+
+    // Punkt (0.0, 0.0, 0.0) to punkt przecięcia przekątnych.
+    // Rozmiar w X oraz Y to 1 jednostka.
+    // Zdefiniowane na płaszczyźnie XY (Z nie ulega zmianie).
+    pointBuffer[0] = -0.5f; pointBuffer[1] = 0.5f; pointBuffer[2] = 0.f;
+    pointBuffer[3] = 0.5f; pointBuffer[4] = 0.5f; pointBuffer[5] = 0.f;
+    pointBuffer[6] = 0.5f; pointBuffer[7] = -0.5f; pointBuffer[8] = 0.f;
+    pointBuffer[9] = -0.5f; pointBuffer[10] = -0.5f; pointBuffer[11] = 0.f;
+
+    // Indeksujemy utworzone punkty tworząc dwa trójkąty.
+    // Każdy trójkąt jest określony przez trzy indeksy punktów w pointBuffer.
+    auto* indexBuffer = (unsigned*) rtcSetNewGeometryBuffer(localRectangleGeometry,
+        RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,
+        3 * sizeof(unsigned),
+        2);
+
+    // Indeksowanie zgodne ze wskazówkami zegara (kolejność określa orientację trójkąta)
+    indexBuffer[0] = 0; indexBuffer[1] = 1; indexBuffer[2] = 2;
+    indexBuffer[3] = 2; indexBuffer[4] = 3; indexBuffer[5] = 0;
+
+    // Wnioskujemy o stworzenie geometrii.
+    rtcCommitGeometry(localRectangleGeometry);
+    // Powiązujemy geometrię ze sceną.
+    rtcAttachGeometry(m_RectLightPrimitiveScene.value(), localRectangleGeometry);
+
+    // Wnioskujemy o zbudowanie obiektu sceny (czworokąta który będzie instancjonowany).
+    rtcCommitScene(m_RectLightPrimitiveScene.value());
+}
+
+
+void OnyxRenderer::MainRenderingEntrypoint(pxr::HdRenderThread* renderThread)
+{
+    while (renderThread->IsPauseRequested())
+    {
+        if (renderThread->IsStopRequested())
+        {
+            std::cout << "[Onyx Render Thread] Zatrzymano wątek renderowania po pauzie." << std::endl;
+            return;
+        }
+
+        std::cout << "[Onyx] Pauza wątku renderowania." << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    if (renderThread->IsStopRequested()) {
+        std::cout << "[Onyx] Zatrzymano wątek renderowania." << std::endl;
+        return;
+    }
+
+    RenderAllAOV();
 }
 
 
@@ -237,6 +347,7 @@ bool OnyxRenderer::RenderAllAOV()
                 )
             );
 
+
             pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(primaryRayHit, m_EmbreeScene);
 
             // Wpisujemy dane do normal AOV jeśli jest podpięte do silnika.
@@ -252,38 +363,26 @@ bool OnyxRenderer::RenderAllAOV()
                 auto g = ((instanceID / 256) % 256);
                 auto b = ((instanceID / (256u * 256u)) % 256u);
 
-                auto& boundMaterial = m_MaterialBuffer[hitInstanceData->MaterialIndexInBuffer];
-                auto diffuseColor = boundMaterial.second->Sample();
-                pixelDataColor[0] = int(diffuseColor[0] * 255);
-                pixelDataColor[1] = int(diffuseColor[1] * 255);
-                pixelDataColor[2] = int(diffuseColor[2] * 255);
-                pixelDataColor[3] = 255;
+                if (!hitInstanceData->Light)
+                {
+                    auto& boundMaterial = m_MaterialBuffer[hitInstanceData->MaterialIndexInBuffer];
+                    auto diffuseColor = boundMaterial.second->Evaluate();
+                    pixelDataColor[0] = int(diffuseColor[0] * 255);
+                    pixelDataColor[1] = int(diffuseColor[1] * 255);
+                    pixelDataColor[2] = int(diffuseColor[2] * 255);
+                    pixelDataColor[3] = 255;
+                }
+                else
+                {
+                    pixelDataColor[0] = 255;
+                    pixelDataColor[1] = 0;
+                    pixelDataColor[2] = 0;
+                    pixelDataColor[3] = 255;
+                }
+
             }
         }
     }
 
     return true;
-}
-
-
-void OnyxRenderer::MainRenderingEntrypoint(pxr::HdRenderThread* renderThread)
-{
-    while (renderThread->IsPauseRequested())
-    {
-        if (renderThread->IsStopRequested())
-        {
-            std::cout << "[Onyx Render Thread] Zatrzymano wątek renderowania po pauzie." << std::endl;
-            return;
-        }
-
-        std::cout << "[Onyx] Pauza wątku renderowania." << std::endl;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    }
-
-    if (renderThread->IsStopRequested()) {
-        std::cout << "[Onyx] Zatrzymano wątek renderowania." << std::endl;
-        return;
-    }
-
-    RenderAllAOV();
 }

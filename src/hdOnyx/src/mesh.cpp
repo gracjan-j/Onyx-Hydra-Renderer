@@ -214,7 +214,9 @@ void HdOnyxMesh::Sync(
             .SmoothNormalsArray = m_SmoothNormalArray.has_value()
                 ? &(m_SmoothNormalArray.value())
                 : nullptr,
-            .MaterialIndexInBuffer = matInBufferID
+            .MaterialIndexInBuffer = matInBufferID,
+            .LightIndexInBuffer = 0,
+            .Light = false
         };
 
         // Tworzymy nową geometrię typu - instance

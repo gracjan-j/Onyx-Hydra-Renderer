@@ -4,6 +4,7 @@
 
 using namespace Onyx;
 
+
 pxr::GfVec3f OnyxHelper::InterpolateWithBarycentricCoordinates(
     const pxr::GfVec2f& UV,
     const pxr::GfVec3f& V0,
@@ -76,18 +77,13 @@ pxr::GfVec3f OnyxHelper::EvaluateHitSurfaceNormal(
 }
 
 
-RTCRayHit OnyxHelper::GeneratePrimaryRay(
-    const float& pixelOffsetX, const float& pixelOffsetY,
-    const float& maxX, const float& maxY,
-    const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix)
+RTCRayHit OnyxHelper::GeneratePrimaryRay(const float& pixelOffsetX, const float& pixelOffsetY, const float& maxX,
+                                         const float& maxY, const pxr::GfMatrix4d& inverseProjectionMatrix,
+                                         const pxr::GfMatrix4d& inverseViewMatrix)
 {
     // Obliczamy Normalised Device Coordinates dla aktualnego piksela
     // NDC reprezentują pozycję pikela w screen-space.
-    pxr::GfVec3f NDC {
-        2.0f * (float(pixelOffsetX) / maxX) - 1.0f,
-        2.0f * (float(pixelOffsetY) / maxY) - 1.0f,
-        -1
-    };
+    pxr::GfVec3f NDC{2.0f * (float(pixelOffsetX) / maxX) - 1.0f, 2.0f * (float(pixelOffsetY) / maxY) - 1.0f, -1};
 
     // Przechodzimy z NDC (screen-space) do clip-space za pomocą odwrotnej projekcji
     // perspektywy wirtualnej kamery. -1 w NDC będzie odpowiadało bliskiej płaszczyźnie projekcji.
@@ -95,16 +91,42 @@ RTCRayHit OnyxHelper::GeneratePrimaryRay(
 
     // Lokalnie, kamera znajduje się w centrum układu współrzednych
     pxr::GfVec3f rayOrigin = inverseViewMatrix.Transform(pxr::GfVec3f(0.0, 0.0, 0.0));
-    pxr::GfVec3f rayDir    = inverseViewMatrix.TransformDir(nearPlaneProjection).GetNormalized();
+    pxr::GfVec3f rayDir = inverseViewMatrix.TransformDir(nearPlaneProjection).GetNormalized();
 
+    return {.ray = {.org_x = rayOrigin[0],
+                    .org_y = rayOrigin[1],
+                    .org_z = rayOrigin[2],
+                    .dir_x = rayDir[0],
+                    .dir_y = rayDir[1],
+                    .dir_z = rayDir[2],
+                    // Nie ustanawiamy minimalnego limitu intersekcji.
+                    .tnear = 0.0,
+                    // Maksymalnym limitem teoretycznie jest limit precyzji typu danych
+                    .tfar = std::numeric_limits<float>::infinity(),
+                    // Nie używamy maskowania. Uwzględniamy wszystkie obiekty sceny
+                    .mask = UINT_MAX,
+                    // Nie korzystamy z rozmycia spowodowanego ruchem
+                    .time = 0.0},
+            .hit = {.geomID = RTC_INVALID_GEOMETRY_ID}};
+}
+
+
+RTCRayHit OnyxHelper::GenerateBounceRay(
+    const pxr::GfVec3f& bounceDirection,
+    const pxr::GfVec3f& hitPosition,
+    const pxr::GfVec3f& hitNormal)
+{
+    // Przesuwamy punkt startowy w celu uniknięcia self-intersection (intersekcji z geometrią w którą ostatnio
+    // uderzył promień).
+    auto offsetHitPosition = hitPosition + (hitNormal * 0.001);
     return {
         .ray = {
-            .org_x = rayOrigin[0],
-            .org_y = rayOrigin[1],
-            .org_z = rayOrigin[2],
-            .dir_x = rayDir[0],
-            .dir_y = rayDir[1],
-            .dir_z = rayDir[2],
+            .org_x = offsetHitPosition[0],
+            .org_y = offsetHitPosition[1],
+            .org_z = offsetHitPosition[2],
+            .dir_x = bounceDirection[0],
+            .dir_y = bounceDirection[1],
+            .dir_z = bounceDirection[2],
             // Nie ustanawiamy minimalnego limitu intersekcji.
             .tnear = 0.0,
             // Maksymalnym limitem teoretycznie jest limit precyzji typu danych
@@ -112,11 +134,44 @@ RTCRayHit OnyxHelper::GeneratePrimaryRay(
             // Nie używamy maskowania. Uwzględniamy wszystkie obiekty sceny
             .mask = UINT_MAX,
             // Nie korzystamy z rozmycia spowodowanego ruchem
-            .time =  0.0
-        },
+            .time = 0.0},
 
         .hit = {
             .geomID = RTC_INVALID_GEOMETRY_ID
         }
     };
+}
+
+
+pxr::GfMatrix3f OnyxHelper::GenerateOrthogonalFrameInZ(pxr::GfVec3f zAxis)
+{
+    // Przygotowujemy macierz która będzie zaweirała końcową transformację.
+    pxr::GfMatrix3f orthogonalFrame;
+    orthogonalFrame.SetIdentity();
+
+    pxr::GfVec3f xAxis;
+    pxr::GfVec3f yAxis;
+
+    // Obliczamy osie prostopadłe aby obliczyć lokalny układ współrzędnych gdzie
+    // wektor normalny jest osią Z.
+    if (fabsf(pxr::GfDot(zAxis, pxr::GfVec3f(0, 0, 1))) < 0.9f)
+    {
+        xAxis = pxr::GfCross(zAxis, pxr::GfVec3f(0, 0, 1));
+    }
+    else
+    {
+        xAxis = pxr::GfCross(zAxis, pxr::GfVec3f(0, 1, 0));
+    }
+
+    pxr::GfBuildOrthonormalFrame(zAxis, &xAxis, &yAxis);
+
+    yAxis = GfCross(zAxis, xAxis);
+
+    // Tworzymy macierz na podstawie przygotowanych osi tworząc w ten sposób
+    // transformację local-world space.
+    orthogonalFrame.SetColumn(0, xAxis.GetNormalized());
+    orthogonalFrame.SetColumn(1, yAxis.GetNormalized());
+    orthogonalFrame.SetColumn(2, zAxis);
+
+    return orthogonalFrame;
 }

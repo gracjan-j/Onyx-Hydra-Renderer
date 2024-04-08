@@ -38,7 +38,7 @@ namespace Onyx
         {
             m_RenderArgument = renderArgument;
 
-            m_Integrator->SetRenderArgument(m_RenderArgument);
+            m_Integrator.value()->SetRenderArgument(m_RenderArgument);
         }
 
 
@@ -160,7 +160,7 @@ namespace Onyx
          * na jednowymiarowym buforze promieni i wykonuje ich śledzenie
          * iteracyjnie.
          */
-        std::optional<OnyxPathtracingIntegrator> m_Integrator;
+        std::optional<OnyxPathtracingIntegrator*> m_Integrator;
 
         /**
          * Flaga wskazująca na potrzebę zresetowania wewnętrznego stanu integratora

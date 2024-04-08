@@ -9,6 +9,14 @@
 using namespace Onyx;
 
 
+OnyxPathtracingIntegrator::OnyxPathtracingIntegrator(const DataPayload& payload)
+: m_Data(payload)
+, m_MersenneTwister(m_RandomDevice())
+, m_UniformDistributionGenerator(std::uniform_real_distribution<float>(0.0f, 1.0f))
+{
+}
+
+
 OnyxPathtracingIntegrator::~OnyxPathtracingIntegrator()
 {
     m_RayPayloadBuffer.clear();
@@ -39,12 +47,20 @@ void OnyxPathtracingIntegrator::ResetState()
 }
 
 
-void OnyxPathtracingIntegrator::SetRenderArgument(
-    const std::shared_ptr<RenderArgument>& renderArgument)
+void OnyxPathtracingIntegrator::SetRenderArgument(const std::shared_ptr<RenderArgument>& renderArgument)
 {
     m_RenderArgument = renderArgument;
 
     ResetState();
+}
+
+
+pxr::GfVec2f OnyxPathtracingIntegrator::GenerateRandomNumber2D()
+{
+    return {
+        m_UniformDistributionGenerator(m_MersenneTwister),
+        m_UniformDistributionGenerator(m_MersenneTwister)
+    };
 }
 
 
@@ -72,6 +88,7 @@ void OnyxPathtracingIntegrator::ResetRayPayloadsWithPrimaryRays()
 
             m_RayPayloadBuffer[rayOffsetInBuffer].RayHit = primaryRayHit;
             m_RayPayloadBuffer[rayOffsetInBuffer].Terminated = false;
+            m_RayPayloadBuffer[rayOffsetInBuffer].Bounce = 0;
             m_RayPayloadBuffer[rayOffsetInBuffer].Throughput = pxr::GfVec3f{1.0};
             m_RayPayloadBuffer[rayOffsetInBuffer].Radiance = pxr::GfVec3f{0.0};
         }
@@ -104,6 +121,7 @@ void OnyxPathtracingIntegrator::PerformIteration()
             m_IntegrationResolution.value()[0],
             m_IntegrationResolution.value()[1]))
     {
+        m_IntegrationResolution = pxr::GfVec2i(int(m_RenderArgument->Width), int(m_RenderArgument->Height));
         ResetState();
     }
 
@@ -147,6 +165,17 @@ void OnyxPathtracingIntegrator::PerformIteration()
 
         auto& currentPayload = m_RayPayloadBuffer[rayIndex];
 
+        // Jeśli promień przekroczył limit ilości odbić bez znalezienia światła.
+        if (currentPayload.Bounce > m_BounceLimit)
+        {
+            // Ręcznie zatrzymujemy promień
+            if (writeColorAOV) writeColorDataAOV(pixelDataColor, pxr::GfVec3f(0.0));
+            if (writeNormalAOV) writeNormalDataAOV(pixelDataNormal, pxr::GfVec3f(0.0));
+            currentPayload.Terminated = true;
+            // Przechodzimy do następnego promienia.
+            continue;
+        }
+
         // Dokonujemy testu intersekcji promienia ze sceną
         rtcIntersect1(*m_Data->Scene, &currentPayload.RayHit, nullptr);
 
@@ -157,7 +186,7 @@ void OnyxPathtracingIntegrator::PerformIteration()
             if (writeColorAOV) writeColorDataAOV(pixelDataColor, pxr::GfVec3f(0.0));
             if (writeNormalAOV) writeNormalDataAOV(pixelDataNormal, pxr::GfVec3f(0.0));
             currentPayload.Terminated = true;
-            // Przechodzimy do następnego piksela.
+            // Przechodzimy do następnego promienia.
             continue;
         }
 
@@ -169,6 +198,11 @@ void OnyxPathtracingIntegrator::PerformIteration()
                 rtcGetGeometry(*m_Data->Scene, currentPayload.RayHit.hit.instID[0])
             )
         );
+
+        if (rayIndex == 10)
+        {
+            int a;
+        }
 
         // Jeśli promień uderzył w światło
         if (hitInstanceData->Light)
@@ -187,7 +221,6 @@ void OnyxPathtracingIntegrator::PerformIteration()
 
         // Obliczamy wektor normalny powierzchni.
         pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(currentPayload.RayHit, *m_Data->Scene);
-
         if(writeNormalAOV && !writeColorAOV)
         {
             writeNormalDataAOV(pixelDataNormal, hitWorldNormal);
@@ -195,40 +228,51 @@ void OnyxPathtracingIntegrator::PerformIteration()
             continue;
         }
 
+        // Promień nie uderzył w światło lecz geometrię.
+        // Pobieramy materiał podpięty do geometrii aby wygenerować odbicie promienia na powierzchni.
+        auto dataID = hitInstanceData->DataIndexInBuffer;
+        auto& boundMaterial = m_Data->MaterialBuffer->at(dataID);
 
+        // Generujemy odbicie na powierzchni materiału za pomocą dedykowanej metody.
+        // Metoda generuje próbkę w local space na podstawie parametrów materiału.
+        // Przekazanie wektora normalnego pozwala na transformację wygenerowanej próbki
+        // do world-space w orientacji zgodnej z wektorem normalnym powierzchni.
+        auto rand2D = pxr::GfVec2f{
+            m_UniformDistributionGenerator(m_MersenneTwister),
+            m_UniformDistributionGenerator(m_MersenneTwister)
+        };
+        auto materialSampleDir = boundMaterial.second->Sample(hitWorldNormal, rand2D);
 
-        if (writeColorAOV)
-        {
-            uint instanceID = currentPayload.RayHit.hit.instID[0] * 1289;
-            auto r = (instanceID % 256u);
-            auto g = ((instanceID / 256) % 256);
-            auto b = ((instanceID / (256u * 256u)) % 256u);
+        // Skalujemy siłę naszego promienia przez funkcję BXDF materiału
+        // która skaluje ilość mocy wejściowej na podstawie charakterystyki materiału.
+        currentPayload.Throughput = pxr::GfCompMult(
+            boundMaterial.second->Evaluate(materialSampleDir) / boundMaterial.second->PDF(materialSampleDir),
+            currentPayload.Throughput
+        );
 
-            pixelDataColor[0] = r;
-            pixelDataColor[1] = g;
-            pixelDataColor[2] = b;
-            pixelDataColor[3] = 255;
-            auto dataID = hitInstanceData->DataIndexInBuffer;
+        // Obliczamy pozycję intersekcji w świecie.
+        // Pozycja = kierunek * czas + początek
+        auto origin = pxr::GfVec3f(
+            currentPayload.RayHit.ray.org_x,
+            currentPayload.RayHit.ray.org_y,
+            currentPayload.RayHit.ray.org_z);
+        auto direction = pxr::GfVec3f(
+                    currentPayload.RayHit.ray.dir_x,
+                    currentPayload.RayHit.ray.dir_y,
+                    currentPayload.RayHit.ray.dir_z);
 
-            if (!hitInstanceData->Light)
-            {
-                auto& boundMaterial = m_Data->MaterialBuffer->at(dataID);
-                auto diffuseColor = boundMaterial.second->Evaluate();
-                pixelDataColor[0] = int(diffuseColor[0] * 255);
-                pixelDataColor[1] = int(diffuseColor[1] * 255);
-                pixelDataColor[2] = int(diffuseColor[2] * 255);
-                pixelDataColor[3] = 255;
-            }
-            else
-            {
-                auto& lightData = m_Data->LightBuffer->at(dataID);
-                pixelDataColor[0] = int(lightData[0] * 255);
-                pixelDataColor[1] = int(lightData[1] * 255);
-                pixelDataColor[2] = int(lightData[2] * 255);
-                pixelDataColor[3] = 255;
-            }
-        }
+        auto hitPosition = direction * currentPayload.RayHit.ray.tfar + origin;
 
-        m_RayPayloadBuffer[rayIndex].Terminated = true;
+        // Generujemy promień odbicia który zaczyna się w punkcie ostatniej intersekcji z geometrią
+        // o kierunku odbicia który został wygenerowany na podstawie funkcji BXDF materiału.
+        // Dokonujemy śledzenia ścieżki do momentu zakończenia tego procesu przez trafienie w światło.
+        auto bounceRay = OnyxHelper::GenerateBounceRay(materialSampleDir, hitPosition, hitWorldNormal);
+
+        // Podmieniamy promień dla następnej iteracji.
+        currentPayload.RayHit = bounceRay;
+
+        // Odbicie oznacza kolejną iterację.
+        currentPayload.Terminated = false;
+        currentPayload.Bounce += 1;
     }
 }

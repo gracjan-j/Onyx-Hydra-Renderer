@@ -3,6 +3,7 @@
 #include <embree4/rtcore_ray.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/base/gf/vec2f.h>
+#include <pxr/base/gf/matrix3f.h>
 
 // TODO: Przenieś do OnyxRenderer.
 #include "../../hdOnyx/include/mesh.h"
@@ -61,6 +62,27 @@ namespace Onyx
             const float& maxX, const float& maxY,
             const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix
         );
+
+
+        /**
+         * Metoda pomocnicza służąca do tworzenia promienia odbicia na podstawie przekazanego kierunku odbicia
+         * oraz punktu kolizji.
+         *
+         * @param bounceDirection Znormalizowany kierunek odbicia w world-space.
+         * @param hitPosition Punkt startowy nowego promienia w world-space.
+         * @param hitNormal Wektor normalny powierzchni punktu startowego.
+         * @return Zainicjalizowany promień odbicia dla Embree, gotowy do testu intersekcji.
+         * @note Początek startowy promienia jest przesuwany zgodnie z wektorem normalnym
+         *       w celu uniknięcia intersekcji z powierzchnią punktu startowego.
+         */
+        static RTCRayHit GenerateBounceRay(
+            const pxr::GfVec3f& bounceDirection,
+            const pxr::GfVec3f& hitPosition,
+            const pxr::GfVec3f& hitNormal
+        );
+
+
+        static pxr::GfMatrix3f GenerateOrthogonalFrameInZ(pxr::GfVec3f zAxis);
     };
 
 }

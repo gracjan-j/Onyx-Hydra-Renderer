@@ -29,7 +29,7 @@ OnyxRenderer::OnyxRenderer()
         .MaterialBuffer = &m_MaterialDataBuffer
     };
 
-    m_Integrator = OnyxPathtracingIntegrator(payload);
+    m_Integrator = new OnyxPathtracingIntegrator(payload);
 }
 
 
@@ -241,12 +241,12 @@ bool OnyxRenderer::RenderAllAOV()
 
     if(m_ResetIntegratorState)
     {
-        m_Integrator->ResetState();
+        m_Integrator.value()->ResetState();
     }
 
-    while(!m_Integrator->IsConverged())
+    while(!m_Integrator.value()->IsConverged())
     {
-        m_Integrator->PerformIteration();
+        m_Integrator.value()->PerformIteration();
     }
 
     return true;

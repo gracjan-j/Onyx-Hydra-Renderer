@@ -2,6 +2,7 @@
 
 
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/base/gf/vec2f.h>
 
 
 namespace Onyx
@@ -21,7 +22,7 @@ namespace Onyx
          * na podstawie wykonania procesu Importance Sampling.
          * @return Kierunek odbicia załamania w świecie sceny (world-space).
          */
-        virtual pxr::GfVec3f Sample()
+        virtual pxr::GfVec3f Sample(const pxr::GfVec3f& N, const pxr::GfVec2f& random2D)
         {
             return {0.0, 0.0, 1.0};
         };
@@ -31,7 +32,7 @@ namespace Onyx
          * Za pomocą tej metody materiał powinien obliczyć wymianę energi dla wektora wejściowego i wyjściowego
          * biorąc pod uwagę swoją charakterystykę.
          */
-        virtual pxr::GfVec3f Evaluate()
+        virtual pxr::GfVec3f Evaluate(const pxr::GfVec3f& sample)
         {
             return {0.0, 0.0, 0.0};
         };
@@ -43,7 +44,7 @@ namespace Onyx
          * @param sample Kierunek odbicia / załamania dla którego obliczone zostanie prawdopodobieństwo
          * @return Szacunek prawdopodobieństwa dla kierunku.
          */
-        virtual float PDF(pxr::GfVec3f sample)
+        virtual float PDF(const pxr::GfVec3f& sample)
         {
             return 0.0;
         };

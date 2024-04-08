@@ -5,6 +5,7 @@
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/usd/sdf/path.h>
+#include <random>
 
 
 #include "Integrator.h"
@@ -17,7 +18,8 @@ namespace Onyx
     struct RayPayload
     {
         RTCRayHit RayHit;
-        bool Terminated;
+        bool Terminated = false;
+        uint8_t Bounce = 0;
 
         pxr::GfVec3f Throughput = pxr::GfVec3f(1.0);
         pxr::GfVec3f Radiance = pxr::GfVec3f(0.0);
@@ -33,8 +35,8 @@ namespace Onyx
     class OnyxPathtracingIntegrator final : Integrator
     {
     public:
-        OnyxPathtracingIntegrator(const DataPayload& payload)
-        : m_Data(payload) {};
+        OnyxPathtracingIntegrator() = default;
+        OnyxPathtracingIntegrator(const DataPayload& payload);
 
         ~OnyxPathtracingIntegrator() override;
 
@@ -50,6 +52,8 @@ namespace Onyx
 
     private:
 
+        pxr::GfVec2f GenerateRandomNumber2D();
+
         void ResetRayPayloadsWithPrimaryRays();
 
         std::shared_ptr<RenderArgument> m_RenderArgument;
@@ -59,6 +63,12 @@ namespace Onyx
         std::optional<pxr::GfVec2i> m_IntegrationResolution;
 
         std::optional<DataPayload> m_Data;
+
+        std::random_device m_RandomDevice;
+        std::mt19937 m_MersenneTwister;
+        std::uniform_real_distribution<float> m_UniformDistributionGenerator;
+
+        const uint8_t m_BounceLimit = 1;
     };
 
 }

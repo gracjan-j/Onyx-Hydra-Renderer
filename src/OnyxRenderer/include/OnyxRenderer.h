@@ -11,6 +11,7 @@
 #include "RenderArgument.h"
 
 #include "../../hdOnyx/include/mesh.h"
+#include "OnyxPathtracingIntegrator.h"
 
 
 namespace Onyx
@@ -32,10 +33,14 @@ namespace Onyx
 
         bool RenderAllAOV();
 
+
         void SetRenderArgument(const std::shared_ptr<RenderArgument>& renderArgument)
         {
             m_RenderArgument = renderArgument;
+
+            m_Integrator->SetRenderArgument(m_RenderArgument);
         }
+
 
         /**
          * Metoda podpinająca geometrię do sceny Embree silnika.
@@ -121,7 +126,6 @@ namespace Onyx
         /* MATERIAŁY */
 
         using PathMaterialPair = std::pair<pxr::SdfPath, std::unique_ptr<Material>>;
-
         /**
          * Bufor materiałów indeksowanych pośrednio za pomocą ścieżki materiału
          * w scenie. Użycie mapy nie jest wskazane ze względu na brak możliwości
@@ -148,6 +152,21 @@ namespace Onyx
          * Struktura przechowująca bufory wyjściowe oraz rozmiar wymaganego renderu.
          */
         std::shared_ptr<RenderArgument> m_RenderArgument;
+
+        /* INTEGRATOR */
+
+        /**
+         * Abstrakcja wykonywanego algorytmu śledzenia ścieżek która operuje
+         * na jednowymiarowym buforze promieni i wykonuje ich śledzenie
+         * iteracyjnie.
+         */
+        std::optional<OnyxPathtracingIntegrator> m_Integrator;
+
+        /**
+         * Flaga wskazująca na potrzebę zresetowania wewnętrznego stanu integratora
+         * w przypadku zmiany wymaganych parametrów silnika (rozmiar renderu, parametry kamery).
+         */
+        bool m_ResetIntegratorState = true;
     };
 
 }

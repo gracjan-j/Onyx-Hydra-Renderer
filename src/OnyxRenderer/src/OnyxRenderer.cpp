@@ -4,7 +4,6 @@
 #include <pxr/imaging/hd/renderThread.h>
 #include <pxr/imaging/hd/tokens.h>
 
-#include "../../hdOnyx/include/mesh.h"
 #include "DiffuseMaterial.h"
 #include "OnyxHelper.h"
 
@@ -23,7 +22,23 @@ OnyxRenderer::OnyxRenderer()
             std::make_unique<DiffuseMaterial>(pxr::GfVec3f(1.0, 0.0, 0.85))
         }
     );
+
+    const DataPayload payload = {
+        .Scene = &m_EmbreeScene,
+        .LightBuffer = &m_LightDataBuffer,
+        .MaterialBuffer = &m_MaterialDataBuffer
+    };
+
+    m_Integrator = OnyxPathtracingIntegrator(payload);
 }
+
+
+OnyxRenderer::~OnyxRenderer()
+{
+    rtcReleaseScene(m_EmbreeScene);
+    rtcReleaseDevice(m_EmbreeDevice);
+}
+
 
 
 uint OnyxRenderer::AttachGeometryToScene(const RTCGeometry& geometrySource)
@@ -81,6 +96,8 @@ uint OnyxRenderer::AttachLightInstanceToScene(
 
     m_LightDataBuffer.emplace_back(totalEmissionPower);
 
+    m_ResetIntegratorState = true;
+
     // Zwracamy indeks pod jakim przechowujemy dane światła.
     return m_LightDataBuffer.size() - 1;
 }
@@ -115,6 +132,7 @@ void OnyxRenderer::AttachOrUpdateMaterial(
         : PathMaterialPair(materialPath, std::make_unique<DiffuseMaterial>(DiffuseMaterial(diffuseColor)))
     );
 
+    m_ResetIntegratorState = true;
 }
 
 
@@ -122,6 +140,8 @@ void OnyxRenderer::DetachGeometryFromScene(uint geometryID)
 {
     // Odpinamy geometrię od sceny.
     rtcDetachGeometry(m_EmbreeScene, geometryID);
+
+    m_ResetIntegratorState = true;
 }
 
 
@@ -139,22 +159,6 @@ uint OnyxRenderer::GetIndexOfMaterialByPath(const pxr::SdfPath& materialPath) co
     // W przypadku braku prawidłowego powiązania używamy indeksu domyślnego materiału.
     // Bufor przechowuje domyślny materiał na początku wektora.
     return 0;
-}
-
-
-OnyxRenderer::~OnyxRenderer()
-{
-    rtcReleaseScene(m_EmbreeScene);
-    rtcReleaseDevice(m_EmbreeDevice);
-}
-
-
-void writeNormalDataAOV(uint8_t* pixelDataStart, pxr::GfVec3f normal)
-{
-    pixelDataStart[0] = uint(((normal.data()[0] + 1.0) / 2.0) * 255);
-    pixelDataStart[1] = uint(((normal.data()[1] + 1.0) / 2.0) * 255);
-    pixelDataStart[2] = uint(((normal.data()[2] + 1.0) / 2.0) * 255);
-    pixelDataStart[3] = 255;
 }
 
 
@@ -235,129 +239,14 @@ bool OnyxRenderer::RenderAllAOV()
     // poprzez HdOnyxRenderParam. Obiekt ten wymusza StopRender na wątku renderowania.
     rtcCommitScene(m_EmbreeScene);
 
-    // W przypadku braku AOV koloru wykonywnanie pełnego algorytmu nie jest konieczne.
-    // Sprawdzamy dostępność tego kanału danych.
-    uint aovIndex;
-    bool hasColorAOV = m_RenderArgument->IsAvailable(pxr::HdAovTokens->color, aovIndex);
-
-    // Wyciągamy bufory danych do których silnik będzie wpisywał rezultat renderowania różnych zmiennych.
-    auto colorAovBufferData = m_RenderArgument->GetBufferData(pxr::HdAovTokens->color);
-    auto normalAovBufferData = m_RenderArgument->GetBufferData(pxr::HdAovTokens->normal);
-
-    bool writeColorAOV = colorAovBufferData.has_value();
-    bool writeNormalAOV = normalAovBufferData.has_value();
-
-    uint8_t* colorAovBuffer;
-    uint8_t* normalAovBuffer;
-    size_t colorElementSize, normalElementSize;
-    if (writeColorAOV)
+    if(m_ResetIntegratorState)
     {
-        colorAovBuffer = static_cast<uint8_t*>(colorAovBufferData.value().first);
-        colorElementSize = colorAovBufferData.value().second;
+        m_Integrator->ResetState();
     }
 
-    if (writeNormalAOV)
+    while(!m_Integrator->IsConverged())
     {
-        normalAovBuffer = static_cast<uint8_t*>(normalAovBufferData.value().first);
-        normalElementSize = normalAovBufferData.value().second;
-    }
-
-    // Dla każdego pixela w buforze.
-    for (auto currentY = 0; currentY < m_RenderArgument->Height; currentY++)
-    {
-        for (auto currentX = 0; currentX < m_RenderArgument->Width; currentX++)
-        {
-            // Obliczamy jedno-wymiarowy offset pixela w buforze 2D.
-            uint32_t pixelOffsetInBuffer = (currentY * m_RenderArgument->Width) + currentX;
-
-            // Znajdujemy początek danych piksela w buforach AOV
-            uint8_t* pixelDataNormal = writeNormalAOV
-                ? &normalAovBuffer[pixelOffsetInBuffer * normalElementSize]
-                : nullptr;
-
-            uint8_t* pixelDataColor = writeColorAOV
-                ? &colorAovBuffer[pixelOffsetInBuffer * colorElementSize]
-                : nullptr;
-
-            auto pixelColor = pxr::GfVec3f(0.0);
-            auto pixelNormal = pxr::GfVec3f(0.0);
-
-            // Generujemy promień z kamery.
-            RTCRayHit primaryRayHit = OnyxHelper::GeneratePrimaryRay(
-                currentX, currentY,
-                m_RenderArgument->Width, m_RenderArgument->Height,
-                m_RenderArgument->MatrixInverseProjection, m_RenderArgument->MatrixInverseView
-            );
-
-            // Dokonujemy testu intersekcji promienia ze sceną
-            rtcIntersect1(m_EmbreeScene, &primaryRayHit, nullptr);
-
-            // Jeżeli promień nie trafił w geometrię.
-            if (primaryRayHit.hit.geomID == RTC_INVALID_GEOMETRY_ID)
-            {
-                // Kończymy obliczenia dla piksela.
-                if (writeColorAOV)
-                {
-                    uint8_t* colorPixelBufferData = &colorAovBuffer[pixelOffsetInBuffer * colorElementSize];
-                    colorPixelBufferData[0] = 0; colorPixelBufferData[1] = 0;
-                    colorPixelBufferData[2] = 0; colorPixelBufferData[3] = 255;
-                }
-
-                if (writeNormalAOV)
-                {
-                    writeNormalDataAOV(pixelDataNormal, pxr::GfVec3f(0.0));
-                }
-
-                // Przechodzimy do następnego piksela.
-                continue;
-            }
-
-            // Pobieramy strukturę pomocniczą powiązaną z instancją na podstawie identyfikatora instancji
-            // w scenie, który otrzymujemy przy intersekcji.
-            auto* hitInstanceData = static_cast<pxr::HdOnyxInstanceData*>(
-                rtcGetGeometryUserData(
-                    // Identyfikator instancji zakłada jedno-poziomowy instancing ([0]).
-                    // Zgodne z założeniem w HdOnyxMesh który tworzy geometrię.
-                    rtcGetGeometry(m_EmbreeScene, primaryRayHit.hit.instID[0])
-                )
-            );
-
-            pxr::GfVec3f hitWorldNormal = OnyxHelper::EvaluateHitSurfaceNormal(primaryRayHit, m_EmbreeScene);
-
-            // Wpisujemy dane do normal AOV jeśli jest podpięte do silnika.
-            if(writeNormalAOV)
-            {
-                writeNormalDataAOV(pixelDataNormal, hitWorldNormal);
-            }
-
-            if (writeColorAOV)
-            {
-                uint instanceID = primaryRayHit.hit.instID[0] * 1289;
-                auto r = (instanceID % 256u);
-                auto g = ((instanceID / 256) % 256);
-                auto b = ((instanceID / (256u * 256u)) % 256u);
-
-                auto dataID = hitInstanceData->DataIndexInBuffer;
-
-                if (!hitInstanceData->Light)
-                {
-                    auto& boundMaterial = m_MaterialDataBuffer[dataID];
-                    auto diffuseColor = boundMaterial.second->Evaluate();
-                    pixelDataColor[0] = int(diffuseColor[0] * 255);
-                    pixelDataColor[1] = int(diffuseColor[1] * 255);
-                    pixelDataColor[2] = int(diffuseColor[2] * 255);
-                    pixelDataColor[3] = 255;
-                }
-                else
-                {
-                    auto& lightData = m_LightDataBuffer[dataID];
-                    pixelDataColor[0] = int(lightData[0] * 255);
-                    pixelDataColor[1] = int(lightData[1] * 255);
-                    pixelDataColor[2] = int(lightData[2] * 255);
-                    pixelDataColor[3] = 255;
-                }
-            }
-        }
+        m_Integrator->PerformIteration();
     }
 
     return true;

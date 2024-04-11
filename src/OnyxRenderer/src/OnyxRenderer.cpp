@@ -242,12 +242,10 @@ bool OnyxRenderer::RenderAllAOV()
     if(m_ResetIntegratorState)
     {
         m_Integrator.value()->ResetState();
+        m_ResetIntegratorState = false;
     }
 
-    while(!m_Integrator.value()->IsConverged())
-    {
-        m_Integrator.value()->PerformIteration();
-    }
+    m_Integrator.value()->PerformIteration();
 
     return true;
 }

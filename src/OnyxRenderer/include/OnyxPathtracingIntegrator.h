@@ -52,23 +52,30 @@ namespace Onyx
 
     private:
 
-        pxr::GfVec2f GenerateRandomNumber2D();
+        void PerformRayBounceIteration();
+        bool IsRayBufferConverged();
+
+        pxr::GfVec2f GenerateUniformRandomNumber2D();
 
         void ResetRayPayloadsWithPrimaryRays();
+        void ResetSampleBuffer();
 
         std::shared_ptr<RenderArgument> m_RenderArgument;
 
         std::vector<RayPayload> m_RayPayloadBuffer;
 
         std::optional<pxr::GfVec2i> m_IntegrationResolution;
-
         std::optional<DataPayload> m_Data;
 
         std::random_device m_RandomDevice;
         std::mt19937 m_MersenneTwister;
         std::uniform_real_distribution<float> m_UniformDistributionGenerator;
 
-        const uint8_t m_BounceLimit = 1;
+        const uint8_t m_BounceLimit = 3;
+
+        uint m_SampleCount = 1;
+        uint m_SampleLimit = 100;
+        std::vector<pxr::GfVec3f> m_SampleBuffer;
     };
 
 }

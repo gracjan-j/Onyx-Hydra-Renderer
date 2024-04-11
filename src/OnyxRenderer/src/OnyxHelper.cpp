@@ -77,13 +77,18 @@ pxr::GfVec3f OnyxHelper::EvaluateHitSurfaceNormal(
 }
 
 
-RTCRayHit OnyxHelper::GeneratePrimaryRay(const float& pixelOffsetX, const float& pixelOffsetY, const float& maxX,
-                                         const float& maxY, const pxr::GfMatrix4d& inverseProjectionMatrix,
-                                         const pxr::GfMatrix4d& inverseViewMatrix)
+RTCRayHit OnyxHelper::GeneratePrimaryRay(
+    const float& pixelOffsetX, const float& pixelOffsetY,
+    const float& maxX, const float& maxY,
+    const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix,
+    const pxr::GfVec2f uniform2D)
 {
     // Obliczamy Normalised Device Coordinates dla aktualnego piksela
     // NDC reprezentują pozycję pikela w screen-space.
-    pxr::GfVec3f NDC{2.0f * (float(pixelOffsetX) / maxX) - 1.0f, 2.0f * (float(pixelOffsetY) / maxY) - 1.0f, -1};
+    pxr::GfVec3f NDC{
+        2.0f * (float(pixelOffsetX + uniform2D[0]) / maxX) - 1.0f,
+        2.0f * (float(pixelOffsetY + uniform2D[1]) / maxY) - 1.0f,
+        -1};
 
     // Przechodzimy z NDC (screen-space) do clip-space za pomocą odwrotnej projekcji
     // perspektywy wirtualnej kamery. -1 w NDC będzie odpowiadało bliskiej płaszczyźnie projekcji.
@@ -165,7 +170,7 @@ pxr::GfMatrix3f OnyxHelper::GenerateOrthogonalFrameInZ(pxr::GfVec3f zAxis)
 
     pxr::GfBuildOrthonormalFrame(zAxis, &xAxis, &yAxis);
 
-    yAxis = GfCross(zAxis, xAxis);
+    // yAxis = GfCross(zAxis, xAxis);
 
     // Tworzymy macierz na podstawie przygotowanych osi tworząc w ten sposób
     // transformację local-world space.

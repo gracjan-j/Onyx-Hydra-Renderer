@@ -55,12 +55,14 @@ namespace Onyx
          * @param maxY Limit osi Y (rozdzielczość Y - wysokość)
          * @param inverseProjectionMatrix Odwrotna macierz projekcji kamery
          * @param inverseViewMatrix Odwrotna macierz transformacji widoku kamery
+         * @param uniform2D Dwie liczby losowe służące do lekkiego rozproszenia promieni kamery
          * @return Zainicjalizowany promień kamery dla Embree, gotowy do testu intersekcji.
          */
         static RTCRayHit GeneratePrimaryRay(
             const float& pixelOffsetX, const float& pixelOffsetY,
             const float& maxX, const float& maxY,
-            const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix
+            const pxr::GfMatrix4d& inverseProjectionMatrix, const pxr::GfMatrix4d& inverseViewMatrix,
+            const pxr::GfVec2f uniform2D
         );
 
 

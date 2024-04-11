@@ -14,7 +14,6 @@ public:
 
     virtual bool Allocate(const GfVec3i& dimensions, HdFormat format, bool multiSampled) override;
 
-
     virtual unsigned int GetWidth() const override;
     virtual unsigned int GetHeight() const override;
     virtual unsigned int GetDepth() const override;

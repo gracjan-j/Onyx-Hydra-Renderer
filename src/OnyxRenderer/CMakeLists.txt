@@ -42,15 +42,33 @@ add_library(OnyxRenderer STATIC)
 
 set(ONYX_RENDER_HEADERS
     include/OnyxRenderer.h
+    include/OnyxHelper.h
+    include/RenderArgument.h
+
+    # Integratory
+    include/Integrator.h
+    include/OnyxPathtracingIntegrator.h
+
+    # Materiały
+    include/Material.h
+    include/DiffuseMaterial.h
 )
 
 set(ONYX_RENDER_SOURCES
     src/OnyxRenderer.cpp
+    src/OnyxHelper.cpp
+
+    # Integratory
+    src/OnyxPathtracingIntegrator.cpp
+
+    # Materiały
+    src/DiffuseMaterial.cpp
 )
 
 target_link_libraries(OnyxRenderer
     PUBLIC
     embree
+    gf
 )
 
 target_sources(OnyxRenderer PRIVATE

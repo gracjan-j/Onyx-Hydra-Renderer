@@ -77,6 +77,9 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
     m_UsdDrawTarget.value()->AddAttachment("color", GL_RGBA, GL_FLOAT, GL_RGBA);
     // Tekstura "depth" jest teskturą pomocniczą która zawiera wartości głębi.
     m_UsdDrawTarget.value()->AddAttachment("depth", GL_DEPTH_COMPONENT, GL_FLOAT, GL_DEPTH_COMPONENT32);
+    // Tekstura "normal" jest teksturą pomocniczą która zawiera znormalizowane wartości wektorów normalnych geometrii.
+    m_UsdDrawTarget.value()->AddAttachment("normal", GL_RGBA, GL_FLOAT, GL_RGBA);
+
     m_ColorTextureID = m_UsdDrawTarget.value()->GetAttachment("color")->GetGlTextureName();
 
     // Tymczasowo wyłączamy deskryptor z użytku.
@@ -86,10 +89,12 @@ bool GUI::HydraRenderView::CreateOrUpdateDrawTarget(int resolutionX, int resolut
 }
 
 
-bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage)
+bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage, const pxr::TfToken& rendererAOV)
 {
     if (m_Stage == stage)
     {
+        m_UsdImagingEngine.value()->SetRendererAov(rendererAOV);
+
         return true;
     }
 
@@ -105,7 +110,7 @@ bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage
     // Możliwe jest także wnioskowanie o inne typy danych (np. do debugowania danych)
     // takie jak "normal" czy "depth".
     // Ważne, żeby wybrany silnik wspierał renderowanie wybranego typu danych.
-    m_UsdImagingEngine.value()->SetRendererAov(pxr::TfToken("color"));
+    m_UsdImagingEngine.value()->SetRendererAov(rendererAOV);
     
     // Istotna flaga która wnioskuje o to, żeby pośrednik przeprowadzał tzw. "Blit Render Encoding"
     // który jest operacją kopiującą dane z wewnętrznej tymczasowej tekstury pośrednika
@@ -156,13 +161,13 @@ bool GUI::HydraRenderView::PrepareBeforeDraw()
     renderParams.enableSceneLights = true;
 
     // Wnioskujemy o wykonanie renderu pojedynczej klatki przez wybrany silnik renderowania.
+    pxr::GfVec4d viewport(0, 0, m_UsdDrawTarget.value()->GetSize()[0], m_UsdDrawTarget.value()->GetSize()[1]);
+    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
+
     if (!m_StageCameraVector.empty())
     {
         m_UsdImagingEngine.value()->SetCameraPath(m_StageCameraVector[0].GetPath());
     }
-
-    pxr::GfVec4d viewport(0, 0, m_UsdDrawTarget.value()->GetSize()[0], m_UsdDrawTarget.value()->GetSize()[1]);
-    m_UsdImagingEngine.value()->SetRenderViewport(viewport);
 
     m_UsdImagingEngine.value()->Render(m_Stage.value()->GetPseudoRoot(), renderParams);
     

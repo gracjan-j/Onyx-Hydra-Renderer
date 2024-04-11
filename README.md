@@ -44,9 +44,11 @@ cd build
 
 # Skonfiguruj projekt przez CMake używając generatora Xcode
 # i ścieżki do zbudowanej biblioteki OpenUSD 23.08+
-cmake .. -G "Xcode" -DUSD_PATH="/Ścieżka/Instalacyjna/OpenUSD"
+cmake .. -G "Ninja" -DUSD_PATH="/Ścieżka/Instalacyjna/OpenUSD"
 
-# W folderze zostanie wygenerowany projekt Xcode
-# który może zostać użyty do zbudowania programu i/lub edycji plików.
+# Budowanie projektu odbywa się za pomocą komendy:
+cmake --build . --config Release -- -j 12
+
+# Aplikacja .app programu znajduje się w folderze build/src/
 ```
 

@@ -87,7 +87,7 @@ void HdOnyxRenderBuffer::Unmap()
 
 bool HdOnyxRenderBuffer::IsMapped() const
 {
-    // Jeśli liczba użytkowników jest większa od zera, bufor jest w użytku.
+    // Jeśli liczba użytkowników jest większa od zera, bufor jest używany.
     return m_MappedUsersCount.load() > 0;
 }
 

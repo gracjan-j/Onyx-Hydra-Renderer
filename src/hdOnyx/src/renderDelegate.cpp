@@ -136,12 +136,12 @@ HdResourceRegistrySharedPtr HdOnyxRenderDelegate::GetResourceRegistry() const
 
 void HdOnyxRenderDelegate::CommitResources(HdChangeTracker *tracker)
 {
-    std::cout << "[hdOnyx] => CommitResources RenderDelegate" << std::endl;
+    // std::cout << "[hdOnyx] => CommitResources RenderDelegate" << std::endl;
 }
 
 HdRenderPassSharedPtr HdOnyxRenderDelegate::CreateRenderPass(HdRenderIndex *index, HdRprimCollection const& collection)
 {
-    std::cout << "[hdOnyx] RenderPass | Collection = " << collection.GetName() << std::endl;
+    // std::cout << "[hdOnyx] RenderPass | Collection = " << collection.GetName() << std::endl;
 
     return HdRenderPassSharedPtr {
         new HdOnyxRenderPass(index, collection, m_RendererBackend, m_BackgroundRenderThread)

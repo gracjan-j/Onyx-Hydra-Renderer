@@ -37,6 +37,9 @@ public:
     bool CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage, const pxr::TfToken& rendererAOV);
 
     GLuint m_ColorTextureID = 0;
+
+    void PauseEngine();
+    void RestartEngine();
     
 private:
     

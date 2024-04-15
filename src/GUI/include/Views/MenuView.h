@@ -1,9 +1,10 @@
 #pragma once
 
 #include <optional>
-#include <pxr/usd/usd/common.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/usd/usd/common.h>
 
+#include "HydraRenderView.h"
 #include "View.h"
 
 
@@ -14,7 +15,7 @@ class MenuView: public View
 {
 public:
 
-    MenuView() = default;
+    MenuView(HydraRenderView* renderView);
     ~MenuView() override = default;
 
     bool Initialise() override;
@@ -37,6 +38,8 @@ private:
 
     std::vector<pxr::TfToken> m_ComboOptionsAOV = {pxr::HdAovTokens->color, pxr::HdAovTokens->normal};
     int m_ComboSelectionIndexAOV = 0;
+
+    HydraRenderView* m_RenderView;
 };
 
 

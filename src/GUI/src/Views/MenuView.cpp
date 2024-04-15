@@ -11,6 +11,12 @@ namespace GUI
 {
 
 
+MenuView::MenuView(HydraRenderView* renderView)
+{
+    m_RenderView = renderView;
+}
+
+
 bool MenuView::Initialise()
 {
 
@@ -118,6 +124,16 @@ void MenuView::DrawAOVSection()
                 }
             }
             ImGui::EndCombo();
+        }
+
+        if (ImGui::Button("Pause"))
+        {
+            m_RenderView->PauseEngine();
+        }
+
+        if (ImGui::Button("Resume"))
+        {
+            m_RenderView->RestartEngine();
         }
     }
 }

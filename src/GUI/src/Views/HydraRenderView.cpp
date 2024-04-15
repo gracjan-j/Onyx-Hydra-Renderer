@@ -102,16 +102,16 @@ bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage
     m_Stage = stage;
 
     Initialise();
-    
+
     // Tworzymy obiekt wymiany informacji między interfejsem a silnikiem dla nowej sceny.
     m_UsdImagingEngine = new pxr::UsdImagingGLEngine(m_Stage.value()->GetPseudoRoot().GetPath(), pxr::SdfPathVector());
-    
+
     // Mówimy silnikowi że oczekujemy zwrócenia pełnego wyniku renderowania.
     // Możliwe jest także wnioskowanie o inne typy danych (np. do debugowania danych)
     // takie jak "normal" czy "depth".
     // Ważne, żeby wybrany silnik wspierał renderowanie wybranego typu danych.
     m_UsdImagingEngine.value()->SetRendererAov(rendererAOV);
-    
+
     // Istotna flaga która wnioskuje o to, żeby pośrednik przeprowadzał tzw. "Blit Render Encoding"
     // który jest operacją kopiującą dane z wewnętrznej tymczasowej tekstury pośrednika
     // do aktualnie przypisanego "framebuffera" czyli deskryptora tekstur.
@@ -125,10 +125,22 @@ bool GUI::HydraRenderView::CreateOrUpdateImagingEngine(pxr::UsdStageRefPtr stage
     {
         std::cout << plugin.GetString() << std::endl;
     }
-    
+
     m_UsdImagingEngine.value()->SetRendererPlugin(availableRenderersVector.back());
 
     return true;
+}
+
+
+void GUI::HydraRenderView::PauseEngine()
+{
+    m_UsdImagingEngine.value()->PauseRenderer();
+}
+
+
+void GUI::HydraRenderView::RestartEngine()
+{
+    m_UsdImagingEngine.value()->ResumeRenderer();
 }
 
 

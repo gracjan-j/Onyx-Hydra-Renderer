@@ -26,7 +26,7 @@ namespace GUI
         // - Widok okna renderowania
         // - Widok okna menu obsługi silnika oraz sceny.
         m_HydraRenderView = std::make_unique<HydraRenderView>();
-        m_MenuView = std::make_unique<MenuView>();
+        m_MenuView = std::make_unique<MenuView>(m_HydraRenderView.get());
     }
 
     Window::~Window()

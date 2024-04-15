@@ -51,6 +51,8 @@ private:
     std::unique_ptr<HydraRenderView> m_HydraRenderView;
     std::unique_ptr<MenuView> m_MenuView;
 
+    bool m_UsdImagingRunning = true;
+
     const ImVec4 m_WindowBackground = ImVec4(0.01f, 0.01f, 0.01f, 1.00f);
 };
 

@@ -71,10 +71,12 @@ namespace Onyx
         std::mt19937 m_MersenneTwister;
         std::uniform_real_distribution<float> m_UniformDistributionGenerator;
 
-        const uint8_t m_BounceLimit = 3;
+        const uint8_t m_BounceLimit = 1;
 
         uint m_SampleCount = 1;
-        uint m_SampleLimit = 100;
+        uint m_SampleLimit = 1000;
+
+        bool m_IncreaseSampleCount = true;
         std::vector<pxr::GfVec3f> m_SampleBuffer;
     };
 

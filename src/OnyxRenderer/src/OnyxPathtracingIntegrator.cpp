@@ -143,6 +143,8 @@ void OnyxPathtracingIntegrator::PerformIteration()
 
     if(m_SampleCount > m_SampleLimit) return;
 
+    m_IncreaseSampleCount = true;
+
     // Wykonujemy śledzenie segmentu ścieżki do momentu zatrzymania każdego z promieni w buforze.
     while(!IsRayBufferConverged())
     {
@@ -153,7 +155,7 @@ void OnyxPathtracingIntegrator::PerformIteration()
     // Jedna iteracja integratora = wykonanie śledzenia ścieżek (grupy segmentów) dla jednego piksela.
     // Wykonanie wielu iteracji integratora pozwala nam na poprawę jakości aproksymacji
     // zgodnie z teorią Monte Carlo. Wyniki zostaną uśrednione przez ilość zebranych próbek (Sample Count).
-    m_SampleCount += 1;
+    if (m_IncreaseSampleCount) m_SampleCount += 1;
 
     // Wykonanie nowej iteracji ponownie zaczyna się w kamerze. Wypełniamy bufor promieni promieniem "primary"
     // (promień wychodzący z kamery).
@@ -192,6 +194,9 @@ void OnyxPathtracingIntegrator::PerformRayBounceIteration()
         uint8_t* pixelDataColor = writeColorAOV ? &colorAovBuffer[rayIndex * colorElementSize] : nullptr;
 
         auto& currentPayload = m_RayPayloadBuffer[rayIndex];
+
+        // Jeśli działanie promienia zostało już wcześniej zakończone, pomijamy go.
+        if (currentPayload.Terminated) continue;
 
         // Jeśli promień przekroczył limit ilości odbić bez znalezienia światła.
         if (currentPayload.Bounce > m_BounceLimit)
@@ -254,6 +259,7 @@ void OnyxPathtracingIntegrator::PerformRayBounceIteration()
         {
             writeNormalDataAOV(pixelDataNormal, hitWorldNormal);
             currentPayload.Terminated = true;
+            m_IncreaseSampleCount = false;
             continue;
         }
 

@@ -159,18 +159,7 @@ pxr::GfMatrix3f OnyxHelper::GenerateOrthogonalFrameInZ(pxr::GfVec3f zAxis)
 
     // Obliczamy osie prostopadłe aby obliczyć lokalny układ współrzędnych gdzie
     // wektor normalny jest osią Z.
-    if (fabsf(pxr::GfDot(zAxis, pxr::GfVec3f(0, 0, 1))) < 0.9f)
-    {
-        xAxis = pxr::GfCross(zAxis, pxr::GfVec3f(0, 0, 1));
-    }
-    else
-    {
-        xAxis = pxr::GfCross(zAxis, pxr::GfVec3f(0, 1, 0));
-    }
-
     pxr::GfBuildOrthonormalFrame(zAxis, &xAxis, &yAxis);
-
-    // yAxis = GfCross(zAxis, xAxis);
 
     // Tworzymy macierz na podstawie przygotowanych osi tworząc w ten sposób
     // transformację local-world space.
